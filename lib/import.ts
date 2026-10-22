@@ -182,6 +182,13 @@ function rows(sheets: SheetInput, name: string): Row[] {
   });
 }
 
+/**
+ * Whether a row holds real data. Rows that only carry a formula column (the
+ * sheet fills "Month" on every row) are empty rows, not skipped entries.
+ */
+const hasData = (row: Row) =>
+  ["date", "datepaid", "amount", "amountpaid", "category", "notes"].some((k) => text(row[k]) !== "");
+
 const get = (row: Row, ...names: string[]) => {
   for (const n of names) {
     const v = row[n.toLowerCase()];
@@ -234,7 +241,7 @@ export function buildImport(sheets: SheetInput, today: string): { payload: Impor
     const date = toDate(get(r, ...dateCols));
     const amount = num(get(r, "Amount", "AmountPaid"));
     if (!date || amount == null || amount <= 0) {
-      if (Object.values(r).some((v) => text(v) !== "")) skipped++;
+      if (hasData(r)) skipped++;
       return null;
     }
     const category = resolve(get(r, "Category"));
@@ -295,7 +302,7 @@ export function buildImport(sheets: SheetInput, today: string): { payload: Impor
     const date = toDate(get(r, "Date"));
     const amount = num(get(r, "Amount"));
     if (!parent || !date || amount == null || amount < 0) {
-      if (Object.values(r).some((v) => text(v) !== "")) skipped++;
+      if (hasData(r)) skipped++;
       return [];
     }
     return [{ parent_key: `rec:${parent}`, date, amount: money(amount) }];
@@ -334,7 +341,7 @@ export function buildImport(sheets: SheetInput, today: string): { payload: Impor
     const date = toDate(get(r, "DatePaid", "Date"));
     const amount = num(get(r, "AmountPaid", "Amount"));
     if (!plan || !date || amount == null || amount < 0) {
-      if (Object.values(r).some((v) => text(v) !== "")) skipped++;
+      if (hasData(r)) skipped++;
       return [];
     }
     const seq = Math.min(plan.months, Math.max(1, monthsBetween(plan.first_due, date) + 1));
