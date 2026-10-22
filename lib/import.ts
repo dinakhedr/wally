@@ -388,25 +388,49 @@ export type CategoryChoice = "new" | string;
 
 const catKey = (kind: Kind, name: string) => `${kind}:${name.toLowerCase()}`;
 
-// Words in a sheet category name that point at one of Wally's starter categories.
+// Words in a sheet category name that point at one of Wally's starter
+// categories. Whole words only; a trailing "s" is allowed. First match wins,
+// in the order of the user's own categories.
 const HINTS: Record<string, string[]> = {
-  groceries: ["supermarket", "grocery", "groceries", "market", "food"],
-  "dining out": ["restaurant", "dining", "takeaway", "delivery", "eating"],
-  coffee: ["cafe", "café", "coffee"],
-  transport: ["petrol", "fuel", "gas station", "car", "uber", "careem", "taxi", "ride", "transport", "transportation", "parking", "metro"],
-  bills: ["utilities", "utility", "electric", "water", "internet", "phone", "mobile", "vodafone", "orange", "etisalat", "bill"],
-  home: ["rent", "home", "house", "furniture", "repairs"],
-  shopping: ["shopping", "clothes", "electronics", "amazon"],
-  health: ["health", "pharmacy", "doctor", "medical", "gym", "clinic"],
-  fun: ["fun", "entertainment", "games", "gaming", "movies", "cinema"],
-  subscriptions: ["subscription", "digital", "software", "streaming", "music", "podcast", "apps"],
-  education: ["education", "course", "books", "school", "tuition"],
-  gifts: ["gift", "charity", "donation"],
+  // expenses
+  groceries: ["supermarket", "grocery", "groceries", "market", "food", "coffee"],
+  "cafe & restaurants": ["cafe", "café", "restaurant", "dining", "takeaway", "delivery", "eating"],
+  transport: ["transport", "transportation", "parking", "metro", "bus", "train"],
+  petrol: ["petrol", "fuel", "benzine"],
+  "car maintenance": ["car", "mechanic", "tyre", "tire"],
+  "ride hailing": ["uber", "careem", "taxi", "ride", "hailing"],
+  bills: ["bill", "phone", "mobile", "vodafone", "orange", "etisalat"],
+  internet: ["internet", "wifi", "broadband", "data"],
+  utilities: ["utility", "utilities", "electric", "electricity", "water", "gas"],
+  home: ["home", "house", "furniture", "repair"],
+  rent: ["rent"],
+  shopping: ["shopping", "clothes", "electronic", "electronics", "amazon"],
+  health: ["health", "pharmacy", "doctor", "medical", "clinic", "medicine"],
+  gym: ["gym", "fitness", "sport"],
+  "personal care": ["personal", "beauty", "skin", "salon", "barber"],
+  fun: ["fun", "entertainment", "game", "gaming", "movie", "cinema"],
+  subscriptions: ["subscription", "digital", "software", "streaming", "music", "podcast", "app", "tool"],
+  education: ["education", "course", "book", "school", "tuition"],
+  gifts: ["gift", "present"],
+  charity: ["charity", "donation", "zakat", "sadaqa"],
   travel: ["travel", "flight", "hotel", "trip"],
-  "personal care": ["personal", "care", "beauty", "skin", "salon", "barber"],
-  salary: ["salary", "wage", "pay", "overtime", "bonus"],
-  freelance: ["freelance", "commission", "side"],
+  pets: ["pet", "vet"],
+  smoking: ["smoking", "cigarette", "vape", "tobacco"],
+  "lent money": ["lent", "lend", "lending"],
+  "debt repayment": ["debt", "repayment", "repay"],
+  // income
+  salary: ["salary", "wage", "payroll"],
+  freelance: ["freelance", "side", "project"],
   gift: ["gift"],
+  "bank interest": ["interest", "savings"],
+  "money returned": ["repayment", "returned", "back"],
+  commission: ["commission"],
+  overtime: ["overtime"],
+  bonus: ["bonus"],
+  "rental income": ["rent", "rental"],
+  dividends: ["dividend", "stock", "share"],
+  refund: ["refund", "cashback"],
+  "borrowed money": ["borrowed", "borrow", "loan"],
 };
 
 /**

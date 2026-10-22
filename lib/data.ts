@@ -109,3 +109,13 @@ export async function getUpcomingBills(supabase: SupabaseClient, until: string, 
     .limit(limit);
   return (data ?? []).map((r: Row) => ({ ...r, amount: Number(r.amount) }) as Recurring);
 }
+
+/** Bill and installment payments made between two dates (inclusive). */
+export async function getPlanPayments(supabase: SupabaseClient, from: string, to: string) {
+  const [bills, installments] = await Promise.all([
+    supabase.from("recurring_payments").select("amount").eq("status", "paid").gte("due_on", from).lte("due_on", to),
+    supabase.from("installment_payments").select("amount").gte("due_on", from).lte("due_on", to),
+  ]);
+  const sum = (rows: { amount: number | string }[] | null) => (rows ?? []).reduce((n, r) => n + Number(r.amount), 0);
+  return { bills: sum(bills.data), installments: sum(installments.data) };
+}

@@ -1,6 +1,132 @@
--- Wally migration 002: Google Sheet import
+-- Wally migration 002: new category list + Google Sheet import
 -- Run once in Supabase → SQL Editor on a project that already ran schema.sql.
 -- Safe to re-run.
+
+-- ─── Categories ──────────────────────────────────────────────────────────────
+
+-- Wally's starter categories, in display order.
+create or replace function public.starter_categories()
+returns table (kind text, name text, emoji text, color text, sort_order int)
+language sql
+immutable
+set search_path = ''
+as $$
+  values
+      ('expense', 'Groceries',          '🛒', 'mint',    1),
+      ('expense', 'Cafe & Restaurants', '🍽️', 'coral',   2),
+      ('expense', 'Transport',          '🚗', 'sky',     3),
+      ('expense', 'Petrol',             '⛽', 'sun',     4),
+      ('expense', 'Car Maintenance',    '🔧', 'sky',     5),
+      ('expense', 'Ride Hailing',       '🚕', 'sun',     6),
+      ('expense', 'Bills',              '💡', 'sun',     7),
+      ('expense', 'Internet',           '📶', 'sky',     8),
+      ('expense', 'Utilities',          '⚡', 'sun',     9),
+      ('expense', 'Home',               '🏠', 'violet', 10),
+      ('expense', 'Rent',               '🔑', 'violet', 11),
+      ('expense', 'Shopping',           '🛍️', 'coral',  12),
+      ('expense', 'Health',             '💊', 'mint',   13),
+      ('expense', 'Gym',                '🏋️', 'mint',   14),
+      ('expense', 'Personal care',      '💅', 'violet', 15),
+      ('expense', 'Fun',                '🎬', 'violet', 16),
+      ('expense', 'Subscriptions',      '📺', 'sky',    17),
+      ('expense', 'Education',          '📚', 'sky',    18),
+      ('expense', 'Gifts',              '🎁', 'coral',  19),
+      ('expense', 'Charity',            '🏥', 'coral',  20),
+      ('expense', 'Travel',             '✈️', 'sky',    21),
+      ('expense', 'Pets',               '🐾', 'sun',    22),
+      ('expense', 'Smoking',            '🚬', 'sun',    23),
+      ('expense', 'Lent Money',         '🤝', 'sun',    24),
+      ('expense', 'Debt Repayment',     '💸', 'coral',  25),
+      ('income',  'Salary',             '💼', 'mint',    1),
+      ('income',  'Freelance',          '💻', 'mint',    2),
+      ('income',  'Bonus',              '🎉', 'mint',    3),
+      ('income',  'Overtime',           '⏰', 'mint',    4),
+      ('income',  'Commission',         '📊', 'mint',    5),
+      ('income',  'Bank Interest',      '🏦', 'mint',    6),
+      ('income',  'Certificate Interest','📋', 'mint',   7),
+      ('income',  'Dividends',          '📈', 'mint',    8),
+      ('income',  'Rental Income',      '🏠', 'mint',    9),
+      ('income',  'Gift',               '🎁', 'mint',   10),
+      ('income',  'Refund',             '🔄', 'mint',   11),
+      ('income',  'Money Returned',     '💰', 'mint',   12),
+      ('income',  'Borrowed Money',     '📥', 'mint',   13);
+$$;
+
+-- Adds any starter category the user doesn't have yet (names match ignoring
+-- case), so it is safe to run for existing users too. With reorder = true it
+-- also puts existing starter categories in the list's order.
+drop function if exists public.seed_starter_categories(uuid);
+create or replace function public.seed_starter_categories(uid uuid, reorder boolean default false)
+returns void
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  if reorder then
+    update public.categories c
+       set sort_order = s.sort_order
+      from public.starter_categories() s
+     where c.user_id = uid and c.kind = s.kind and lower(c.name) = lower(s.name);
+  end if;
+
+  insert into public.categories (user_id, kind, name, emoji, color, sort_order)
+  select uid, s.kind, s.name, s.emoji, s.color, s.sort_order
+    from public.starter_categories() s
+   where not exists (
+     select 1 from public.categories c
+      where c.user_id = uid and c.kind = s.kind and lower(c.name) = lower(s.name)
+   );
+end $$;
+
+-- Only the sign-up trigger and migrations may call it, never the app's users.
+revoke execute on function public.seed_starter_categories(uuid, boolean) from public, anon, authenticated;
+
+-- New sign-up → profile + starter categories.
+create or replace function public.handle_new_user()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  insert into public.profiles (id, display_name, avatar_url)
+  values (
+    new.id,
+    coalesce(new.raw_user_meta_data ->> 'full_name', new.raw_user_meta_data ->> 'name'),
+    new.raw_user_meta_data ->> 'avatar_url'
+  )
+  on conflict (id) do nothing;
+
+  perform public.seed_starter_categories(new.id);
+  return new;
+end $$;
+
+-- Existing users: move to the new list.
+-- "Dining out" becomes "Cafe & Restaurants" (unless they already have one).
+update public.categories c
+   set name = 'Cafe & Restaurants', emoji = '🍽️'
+ where c.kind = 'expense' and c.name = 'Dining out'
+   and not exists (
+     select 1 from public.categories o
+      where o.user_id = c.user_id and o.kind = 'expense' and lower(o.name) = 'cafe & restaurants'
+   );
+
+-- "Coffee" and "Other" are gone: deleted if nothing uses them, hidden otherwise.
+delete from public.categories c
+ where ((c.kind = 'expense' and c.name in ('Coffee', 'Other')) or (c.kind = 'income' and c.name = 'Other'))
+   and not exists (select 1 from public.expenses e where e.category_id = c.id)
+   and not exists (select 1 from public.income i where i.category_id = c.id)
+   and not exists (select 1 from public.recurring r where r.category_id = c.id)
+   and not exists (select 1 from public.installments n where n.category_id = c.id);
+update public.categories c
+   set archived = true
+ where (c.kind = 'expense' and c.name in ('Coffee', 'Other')) or (c.kind = 'income' and c.name = 'Other');
+
+-- Add the new starter categories to everyone.
+select public.seed_starter_categories(id, true) from public.profiles;
+
+-- ─── Google Sheet import ─────────────────────────────────────────────────────
 
 -- Quarterly bills (e.g. a home phone bill every 3 months).
 alter table public.recurring drop constraint if exists recurring_frequency_check;

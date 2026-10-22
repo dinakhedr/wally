@@ -193,6 +193,84 @@ drop trigger if exists income_touch_category on public.income;
 create trigger income_touch_category after insert on public.income
   for each row execute function public.touch_category();
 
+-- Wally's starter categories, in display order.
+create or replace function public.starter_categories()
+returns table (kind text, name text, emoji text, color text, sort_order int)
+language sql
+immutable
+set search_path = ''
+as $$
+  values
+      ('expense', 'Groceries',          '🛒', 'mint',    1),
+      ('expense', 'Cafe & Restaurants', '🍽️', 'coral',   2),
+      ('expense', 'Transport',          '🚗', 'sky',     3),
+      ('expense', 'Petrol',             '⛽', 'sun',     4),
+      ('expense', 'Car Maintenance',    '🔧', 'sky',     5),
+      ('expense', 'Ride Hailing',       '🚕', 'sun',     6),
+      ('expense', 'Bills',              '💡', 'sun',     7),
+      ('expense', 'Internet',           '📶', 'sky',     8),
+      ('expense', 'Utilities',          '⚡', 'sun',     9),
+      ('expense', 'Home',               '🏠', 'violet', 10),
+      ('expense', 'Rent',               '🔑', 'violet', 11),
+      ('expense', 'Shopping',           '🛍️', 'coral',  12),
+      ('expense', 'Health',             '💊', 'mint',   13),
+      ('expense', 'Gym',                '🏋️', 'mint',   14),
+      ('expense', 'Personal care',      '💅', 'violet', 15),
+      ('expense', 'Fun',                '🎬', 'violet', 16),
+      ('expense', 'Subscriptions',      '📺', 'sky',    17),
+      ('expense', 'Education',          '📚', 'sky',    18),
+      ('expense', 'Gifts',              '🎁', 'coral',  19),
+      ('expense', 'Charity',            '🏥', 'coral',  20),
+      ('expense', 'Travel',             '✈️', 'sky',    21),
+      ('expense', 'Pets',               '🐾', 'sun',    22),
+      ('expense', 'Smoking',            '🚬', 'sun',    23),
+      ('expense', 'Lent Money',         '🤝', 'sun',    24),
+      ('expense', 'Debt Repayment',     '💸', 'coral',  25),
+      ('income',  'Salary',             '💼', 'mint',    1),
+      ('income',  'Freelance',          '💻', 'mint',    2),
+      ('income',  'Bonus',              '🎉', 'mint',    3),
+      ('income',  'Overtime',           '⏰', 'mint',    4),
+      ('income',  'Commission',         '📊', 'mint',    5),
+      ('income',  'Bank Interest',      '🏦', 'mint',    6),
+      ('income',  'Certificate Interest','📋', 'mint',   7),
+      ('income',  'Dividends',          '📈', 'mint',    8),
+      ('income',  'Rental Income',      '🏠', 'mint',    9),
+      ('income',  'Gift',               '🎁', 'mint',   10),
+      ('income',  'Refund',             '🔄', 'mint',   11),
+      ('income',  'Money Returned',     '💰', 'mint',   12),
+      ('income',  'Borrowed Money',     '📥', 'mint',   13);
+$$;
+
+-- Adds any starter category the user doesn't have yet (names match ignoring
+-- case), so it is safe to run for existing users too. With reorder = true it
+-- also puts existing starter categories in the list's order.
+drop function if exists public.seed_starter_categories(uuid);
+create or replace function public.seed_starter_categories(uid uuid, reorder boolean default false)
+returns void
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  if reorder then
+    update public.categories c
+       set sort_order = s.sort_order
+      from public.starter_categories() s
+     where c.user_id = uid and c.kind = s.kind and lower(c.name) = lower(s.name);
+  end if;
+
+  insert into public.categories (user_id, kind, name, emoji, color, sort_order)
+  select uid, s.kind, s.name, s.emoji, s.color, s.sort_order
+    from public.starter_categories() s
+   where not exists (
+     select 1 from public.categories c
+      where c.user_id = uid and c.kind = s.kind and lower(c.name) = lower(s.name)
+   );
+end $$;
+
+-- Only the sign-up trigger and migrations may call it, never the app's users.
+revoke execute on function public.seed_starter_categories(uuid, boolean) from public, anon, authenticated;
+
 -- New sign-up → profile + starter categories.
 create or replace function public.handle_new_user()
 returns trigger
@@ -209,29 +287,7 @@ begin
   )
   on conflict (id) do nothing;
 
-  insert into public.categories (user_id, kind, name, emoji, color, sort_order)
-  values
-    (new.id, 'expense', 'Groceries',     '🛒', 'mint',   1),
-    (new.id, 'expense', 'Dining out',    '🍔', 'coral',  2),
-    (new.id, 'expense', 'Transport',     '🚗', 'sky',    3),
-    (new.id, 'expense', 'Bills',         '💡', 'sun',    4),
-    (new.id, 'expense', 'Home',          '🏠', 'violet', 5),
-    (new.id, 'expense', 'Shopping',      '🛍️', 'coral',  6),
-    (new.id, 'expense', 'Health',        '💊', 'mint',   7),
-    (new.id, 'expense', 'Fun',           '🎬', 'violet', 8),
-    (new.id, 'expense', 'Coffee',        '☕', 'sun',    9),
-    (new.id, 'expense', 'Subscriptions', '📺', 'sky',   10),
-    (new.id, 'expense', 'Education',     '📚', 'sky',   11),
-    (new.id, 'expense', 'Gifts',         '🎁', 'coral', 12),
-    (new.id, 'expense', 'Travel',        '✈️', 'sky',   13),
-    (new.id, 'expense', 'Personal care', '💅', 'violet',14),
-    (new.id, 'expense', 'Other',         '📦', 'sun',   15),
-    (new.id, 'income',  'Salary',        '💼', 'mint',   1),
-    (new.id, 'income',  'Freelance',     '💻', 'mint',   2),
-    (new.id, 'income',  'Gift',          '🎁', 'mint',   3),
-    (new.id, 'income',  'Other',         '💰', 'mint',   4)
-  on conflict (user_id, kind, name) do nothing;
-
+  perform public.seed_starter_categories(new.id);
   return new;
 end $$;
 
