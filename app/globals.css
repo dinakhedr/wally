@@ -20,6 +20,18 @@
   --sun-soft: #fff1d6;
   --sky: #2f9bf0;
   --sky-soft: #dff0fe;
+
+  /* Chart colours, validated for colour-blind separation and 3:1 contrast in
+     both modes (dataviz validator). Spend/income pass on light and dark. */
+  --chart-spend: #e8604f;
+  --chart-income: #14a37a;
+  --cat-1: #2a78d6;
+  --cat-2: #eb6834;
+  --cat-3: #1baf7a;
+  --cat-4: #eda100;
+  --cat-5: #e87ba4;
+  --cat-6: #6250d6;
+  --cat-other: #a8a3b8;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -41,6 +53,14 @@
     --sun-soft: #3a2e17;
     --sky: #66b8ff;
     --sky-soft: #172f45;
+
+    --cat-1: #3987e5;
+    --cat-2: #d95926;
+    --cat-3: #199e70;
+    --cat-4: #c98500;
+    --cat-5: #d55181;
+    --cat-6: #9085e9;
+    --cat-other: #5f5a73;
   }
 }
 
@@ -61,6 +81,8 @@
   --color-sun-soft: var(--sun-soft);
   --color-sky: var(--sky);
   --color-sky-soft: var(--sky-soft);
+  --color-chart-spend: var(--chart-spend);
+  --color-chart-income: var(--chart-income);
   --font-sans: var(--font-jakarta), ui-sans-serif, system-ui, sans-serif;
 }
 

@@ -16,8 +16,8 @@ function greeting(hour: number) {
   return "Good evening";
 }
 
-export default async function HomePage({ searchParams }: { searchParams: Promise<{ added?: string }> }) {
-  const { added } = await searchParams;
+export default async function HomePage({ searchParams }: { searchParams: Promise<{ added?: string; reset?: string }> }) {
+  const { added, reset } = await searchParams;
   const { supabase, user } = await requireUser();
   const now = await getNow();
   const today = toISODate(now);
@@ -162,6 +162,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
       </Card>
 
       {added && <Toast message={added === "income" ? "Income added" : "Expense added"} />}
+      {reset && <Toast message="All data deleted" />}
     </>
   );
 }

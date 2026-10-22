@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ChevronRight, FileSpreadsheet, LogOut } from "lucide-react";
 import { signOut, updateSettings } from "@/app/actions";
 import { Card, SectionTitle } from "@/components/Card";
+import { DangerZone } from "@/components/DangerZone";
 import { PageHeader } from "@/components/PageHeader";
 import { Toast } from "@/components/Toast";
 import { getProfile } from "@/lib/data";
@@ -63,6 +64,8 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
           <LogOut size={18} /> Sign out
         </button>
       </form>
+
+      <DangerZone />
 
       {saved && <Toast message="Saved" />}
     </>

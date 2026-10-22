@@ -1,7 +1,7 @@
 import { LoginButton } from "./LoginButton";
 
-export default async function LoginPage({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
-  const { error } = await searchParams;
+export default async function LoginPage({ searchParams }: { searchParams: Promise<{ error?: string; deleted?: string }> }) {
+  const { error, deleted } = await searchParams;
 
   return (
     <main className="mx-auto flex min-h-dvh max-w-md flex-col items-center justify-center px-6 text-center">
@@ -13,6 +13,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
       <div className="mt-10 w-full">
         <LoginButton />
         {error && <p className="mt-4 text-sm text-coral">Sign-in didn’t work. Please try again.</p>}
+        {deleted && <p className="mt-4 text-sm text-muted">Your account and all its data have been deleted.</p>}
       </div>
 
       <p className="mt-8 max-w-xs text-xs text-muted">

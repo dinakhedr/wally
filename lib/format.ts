@@ -1,20 +1,16 @@
+/** "EGP 1,250" / "EGP 1,250.50" — always the currency code, never a symbol. */
 export function formatMoney(amount: number, currency: string, opts: { signed?: boolean } = {}) {
   const abs = Math.abs(amount);
   const hasCents = Math.round(abs * 100) % 100 !== 0;
-  let text: string;
-  try {
-    text = new Intl.NumberFormat("en", {
-      style: "currency",
-      currency,
-      currencyDisplay: "narrowSymbol",
-      minimumFractionDigits: hasCents ? 2 : 0,
-      maximumFractionDigits: 2,
-    }).format(abs);
-  } catch {
-    text = `${abs.toLocaleString("en", { maximumFractionDigits: 2 })} ${currency}`;
-  }
+  const number = abs.toLocaleString("en", { minimumFractionDigits: hasCents ? 2 : 0, maximumFractionDigits: 2 });
+  const text = `${currency} ${number}`;
   if (amount < 0) return `−${text}`;
   return opts.signed ? `+${text}` : text;
+}
+
+/** Short numbers for chart labels: 950, 12.5K, 1.2M. */
+export function formatCompact(amount: number) {
+  return amount.toLocaleString("en", { notation: "compact", maximumFractionDigits: 1 });
 }
 
 /** Local calendar date as YYYY-MM-DD (not UTC). */

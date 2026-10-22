@@ -10,18 +10,6 @@ import type { Category, Kind } from "@/lib/types";
 
 const GRID_SIZE = 7;
 
-function currencySymbol(currency: string) {
-  try {
-    return (
-      new Intl.NumberFormat("en", { style: "currency", currency, currencyDisplay: "narrowSymbol" })
-        .formatToParts(0)
-        .find((p) => p.type === "currency")?.value ?? currency
-    );
-  } catch {
-    return currency;
-  }
-}
-
 export function AddForm({
   categories,
   currency,
@@ -94,8 +82,8 @@ export function AddForm({
 
       {/* Amount */}
       <label className="mt-8 flex items-baseline justify-center gap-2">
-        <span className={`text-2xl font-bold ${accent === "coral" ? "text-coral" : "text-mint"}`}>
-          {currencySymbol(currency)}
+        <span className={`text-xl font-bold ${accent === "coral" ? "text-coral" : "text-mint"}`}>
+          {currency}
         </span>
         <input
           name="amount"

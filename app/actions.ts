@@ -104,3 +104,33 @@ export async function importSheet(payload: ImportPayload): Promise<ImportResult>
   revalidatePath("/", "layout");
   return { ok: true, counts: data as Record<string, number> };
 }
+
+export type DangerResult = { error?: string } | null;
+
+/** Deletes all of the user's money data and categories; keeps the account. */
+export async function resetMyData(_prev: DangerResult, form: FormData): Promise<DangerResult> {
+  const { supabase } = await requireUser();
+  if (form.get("confirm") !== "DELETE") return { error: "Type DELETE to confirm." };
+
+  const { error } = await supabase.rpc("reset_my_data");
+  if (error) {
+    console.error("reset_my_data failed", error);
+    return { error: error.code === "PGRST202" ? "Run supabase/migrations/003_account.sql in Supabase first." : "Couldn’t delete. Please try again." };
+  }
+  revalidatePath("/", "layout");
+  redirect("/?reset=1");
+}
+
+/** Permanently deletes the user's account and everything in it. */
+export async function deleteMyAccount(_prev: DangerResult, form: FormData): Promise<DangerResult> {
+  const { supabase } = await requireUser();
+  if (form.get("confirm") !== "DELETE") return { error: "Type DELETE to confirm." };
+
+  const { error } = await supabase.rpc("delete_my_account");
+  if (error) {
+    console.error("delete_my_account failed", error);
+    return { error: error.code === "PGRST202" ? "Run supabase/migrations/003_account.sql in Supabase first." : "Couldn’t delete. Please try again." };
+  }
+  await supabase.auth.signOut();
+  redirect("/login?deleted=1");
+}
