@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Wally — Add screen options</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #f6f4fb; --card: #fff; --card-2: #f0edf8; --ink: #1d1a2b; --muted: #6e6884; --line: #e6e1f2;
+    --violet: #6d4aff; --violet-soft: #ece6ff; --coral: #ff6b5e; --coral-soft: #ffe7e4;
+    --mint: #16b886; --mint-soft: #dcf7ee; --sun: #f5a524; --sun-soft: #fff1d6; --sky: #2f9bf0; --sky-soft: #dff0fe;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #e9e5f3; font-family: "Plus Jakarta Sans", system-ui, sans-serif; color: var(--ink); }
+  header { max-width: 1200px; margin: 0 auto; padding: 32px 16px 8px; }
+  h1 { margin: 0; font-size: 28px; font-weight: 800; }
+  header p { margin: 6px 0 0; color: var(--muted); }
+  .grid { max-width: 1200px; margin: 0 auto; padding: 16px; display: grid; gap: 32px; grid-template-columns: repeat(auto-fit, minmax(330px, 1fr)); justify-items: center; }
+  .option { width: 340px; }
+  .tag { display: inline-block; background: var(--violet); color: #fff; font-weight: 800; border-radius: 999px; padding: 4px 12px; font-size: 13px; }
+  .option h2 { margin: 10px 0 2px; font-size: 20px; }
+  .option .why { margin: 0 0 14px; color: var(--muted); font-size: 14px; line-height: 1.45; min-height: 60px; }
+  .phone { width: 340px; height: 700px; border-radius: 44px; background: var(--bg); border: 10px solid #1d1a2b; overflow: hidden; position: relative; display: flex; flex-direction: column; box-shadow: 0 20px 50px rgba(40, 20, 90, .2); }
+  .status { height: 34px; display: flex; justify-content: space-between; align-items: center; padding: 0 24px; font-size: 13px; font-weight: 700; flex: none; }
+  .top { display: flex; align-items: center; justify-content: space-between; padding: 4px 16px 10px; flex: none; }
+  .x { width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; color: var(--muted); font-size: 20px; }
+  .seg { display: flex; background: var(--card-2); border-radius: 999px; padding: 3px; font-size: 13px; font-weight: 800; }
+  .seg span { padding: 6px 14px; border-radius: 999px; color: var(--muted); }
+  .seg .on { background: var(--coral); color: #fff; }
+  .bubble { width: 38px; height: 38px; border-radius: 13px; display: grid; place-items: center; font-size: 19px; flex: none; }
+  .b-mint { background: var(--mint-soft); } .b-coral { background: var(--coral-soft); } .b-sun { background: var(--sun-soft); }
+  .b-sky { background: var(--sky-soft); } .b-violet { background: var(--violet-soft); }
+  .label { font-size: 11px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); margin: 0 16px 6px; }
+  .save { margin: 0 16px 16px; background: var(--coral); color: #fff; border-radius: 16px; padding: 14px; text-align: center; font-weight: 800; box-shadow: 0 8px 18px rgba(255, 107, 94, .3); flex: none; }
+
+  /* Option A — chips + keypad */
+  .chips { display: flex; gap: 8px; overflow: hidden; padding: 0 16px 4px; }
+  .chip { display: flex; align-items: center; gap: 6px; padding: 7px 12px 7px 7px; border-radius: 999px; background: var(--card); box-shadow: inset 0 0 0 1px var(--line); font-size: 13px; font-weight: 700; white-space: nowrap; }
+  .chip .bubble { width: 26px; height: 26px; border-radius: 50%; font-size: 14px; }
+  .chip.on { background: var(--violet-soft); box-shadow: inset 0 0 0 2px var(--violet); }
+  .chip.more { padding: 7px 12px; color: var(--violet); }
+  .amount { text-align: center; padding: 18px 16px 6px; }
+  .amount .cur { font-size: 16px; font-weight: 800; color: var(--coral); margin-right: 6px; }
+  .amount .val { font-size: 48px; font-weight: 800; letter-spacing: -.02em; }
+  .meta { display: flex; justify-content: center; gap: 8px; padding: 6px 16px 12px; }
+  .pill { font-size: 12px; font-weight: 700; padding: 6px 12px; border-radius: 999px; background: var(--card); box-shadow: inset 0 0 0 1px var(--line); color: var(--ink); }
+  .pill.ghost { color: var(--muted); }
+  .keypad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; padding: 0 16px 10px; margin-top: auto; }
+  .key { background: var(--card); border-radius: 14px; height: 50px; display: grid; place-items: center; font-size: 22px; font-weight: 700; box-shadow: inset 0 0 0 1px var(--line); }
+  .key.soft { background: var(--card-2); box-shadow: none; color: var(--muted); }
+
+  /* Option B — form list */
+  .recent { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; padding: 0 16px 14px; }
+  .tile { background: var(--card); border-radius: 16px; box-shadow: inset 0 0 0 1px var(--line); padding: 9px 4px 8px; display: flex; flex-direction: column; align-items: center; gap: 5px; font-size: 11px; font-weight: 700; }
+  .tile.on { background: var(--violet-soft); box-shadow: inset 0 0 0 2px var(--violet); }
+  .list { margin: 0 16px; background: var(--card); border-radius: 22px; box-shadow: inset 0 0 0 1px var(--line); }
+  .row { display: flex; align-items: center; gap: 12px; padding: 13px 14px; border-top: 1px solid var(--line); }
+  .row:first-child { border-top: 0; }
+  .row .k { font-size: 12px; color: var(--muted); font-weight: 600; }
+  .row .v { font-weight: 700; }
+  .row .grow { flex: 1; min-width: 0; }
+  .row .chev { color: var(--muted); font-size: 18px; }
+  .row.big .v { font-size: 30px; font-weight: 800; letter-spacing: -.02em; }
+  .row.big .cur { font-size: 14px; color: var(--coral); font-weight: 800; margin-right: 4px; }
+
+  /* Option C — two steps */
+  .steps { display: flex; gap: 6px; justify-content: center; padding: 0 0 10px; }
+  .steps i { width: 24px; height: 5px; border-radius: 9px; background: var(--line); }
+  .steps i.on { background: var(--violet); }
+  .q { font-size: 20px; font-weight: 800; margin: 2px 16px 10px; }
+  .search { margin: 0 16px 12px; background: var(--card); border-radius: 14px; box-shadow: inset 0 0 0 1px var(--line); padding: 10px 12px; color: var(--muted); font-size: 14px; }
+  .grid5 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px 6px; padding: 0 16px; }
+  .icon { display: flex; flex-direction: column; align-items: center; gap: 5px; font-size: 11px; font-weight: 700; text-align: center; }
+  .icon .bubble { width: 48px; height: 48px; border-radius: 16px; font-size: 23px; }
+  .step2 { margin: 12px 16px 0; background: var(--card); border-radius: 22px; box-shadow: 0 -6px 30px rgba(40, 20, 90, .12); padding: 14px; }
+  .step2 .head { display: flex; align-items: center; gap: 10px; }
+  .step2 .amount { padding: 10px 0 4px; }
+  .step2 .amount .val { font-size: 40px; }
+  .mini { font-size: 11px; color: var(--muted); }
+  .faded { opacity: .35; }
+  footer { max-width: 1200px; margin: 0 auto; padding: 8px 16px 40px; color: var(--muted); font-size: 14px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Add screen — 3 options</h1>
+  <p>All three put the <b>category first</b>, keep it to one screen, and fit without scrolling.</p>
+</header>
+
+<div class="grid">
+
+  <!-- ─── Option A ─────────────────────────────────────────── -->
+  <section class="option">
+    <span class="tag">A</span>
+    <h2>Quick chips + keypad</h2>
+    <p class="why">One row of your recent categories (swipe for more), then the amount with a built‑in number pad. Fastest for daily use — no keyboard pops up.</p>
+    <div class="phone">
+      <div class="status"><span>9:41</span><span>●●● ▮</span></div>
+      <div class="top"><span class="x">✕</span><div class="seg"><span class="on">Expense</span><span>Income</span></div><span style="width:32px"></span></div>
+      <p class="label">Category</p>
+      <div class="chips">
+        <span class="chip on"><span class="bubble b-coral">🍽️</span>Cafe &amp; Rest.</span>
+        <span class="chip"><span class="bubble b-mint">🛒</span>Groceries</span>
+        <span class="chip"><span class="bubble b-sun">⛽</span>Petrol</span>
+        <span class="chip"><span class="bubble b-sun">🚬</span>Smoking</span>
+      </div>
+      <div class="chips" style="padding-top:6px">
+        <span class="chip"><span class="bubble b-mint">💊</span>Health</span>
+        <span class="chip"><span class="bubble b-sky">📶</span>Internet</span>
+        <span class="chip more">All ›</span>
+      </div>
+      <div class="amount"><span class="cur">EGP</span><span class="val">350</span></div>
+      <div class="meta"><span class="pill">📅 Today</span><span class="pill ghost">✎ Add note</span></div>
+      <div class="keypad">
+        <span class="key">1</span><span class="key">2</span><span class="key">3</span>
+        <span class="key">4</span><span class="key">5</span><span class="key">6</span>
+        <span class="key">7</span><span class="key">8</span><span class="key">9</span>
+        <span class="key soft">.</span><span class="key">0</span><span class="key soft">⌫</span>
+      </div>
+      <div class="save">Add expense</div>
+    </div>
+  </section>
+
+  <!-- ─── Option B ─────────────────────────────────────────── -->
+  <section class="option">
+    <span class="tag">B</span>
+    <h2>Simple form card</h2>
+    <p class="why">Your 4 most‑used categories on top, then one tidy card: category, amount, date, note — like iPhone Settings. Calm and familiar.</p>
+    <div class="phone">
+      <div class="status"><span>9:41</span><span>●●● ▮</span></div>
+      <div class="top"><span class="x">✕</span><div class="seg"><span class="on">Expense</span><span>Income</span></div><span style="width:32px"></span></div>
+      <p class="label">Recent</p>
+      <div class="recent">
+        <span class="tile on"><span class="bubble b-coral">🍽️</span>Cafe</span>
+        <span class="tile"><span class="bubble b-mint">🛒</span>Groceries</span>
+        <span class="tile"><span class="bubble b-sun">⛽</span>Petrol</span>
+        <span class="tile"><span class="bubble b-sun">🚬</span>Smoking</span>
+      </div>
+      <div class="list">
+        <div class="row"><span class="bubble b-coral">🍽️</span><div class="grow"><div class="k">Category</div><div class="v">Cafe &amp; Restaurants</div></div><span class="chev">›</span></div>
+        <div class="row big"><div class="grow"><div class="k">Amount</div><div class="v"><span class="cur">EGP</span>350</div></div></div>
+        <div class="row"><div class="grow"><div class="k">Date</div><div class="v">Today</div></div><span class="pill ghost">Yesterday</span><span class="chev">›</span></div>
+        <div class="row"><div class="grow"><div class="k">Note</div><div class="v" style="color:var(--muted);font-weight:500">Optional</div></div></div>
+      </div>
+      <div style="flex:1"></div>
+      <div class="save">Add expense</div>
+    </div>
+  </section>
+
+  <!-- ─── Option C ─────────────────────────────────────────── -->
+  <section class="option">
+    <span class="tag">C</span>
+    <h2>Pick, then type</h2>
+    <p class="why">Step 1 is just “What was it?” with a search and big icons. Tap one and a small panel slides up for the amount. One decision at a time.</p>
+    <div class="phone">
+      <div class="status"><span>9:41</span><span>●●● ▮</span></div>
+      <div class="top"><span class="x">✕</span><div class="seg"><span class="on">Expense</span><span>Income</span></div><span style="width:32px"></span></div>
+      <div class="steps"><i class="on"></i><i class="on"></i></div>
+      <p class="q">What was it?</p>
+      <div class="search">🔍 Search categories</div>
+      <div class="grid5 faded">
+        <span class="icon"><span class="bubble b-coral">🍽️</span>Cafe &amp; Rest.</span>
+        <span class="icon"><span class="bubble b-mint">🛒</span>Groceries</span>
+        <span class="icon"><span class="bubble b-sun">⛽</span>Petrol</span>
+        <span class="icon"><span class="bubble b-sun">🚬</span>Smoking</span>
+        <span class="icon"><span class="bubble b-mint">💊</span>Health</span>
+        <span class="icon"><span class="bubble b-sky">📶</span>Internet</span>
+        <span class="icon"><span class="bubble b-coral">🛍️</span>Shopping</span>
+        <span class="icon"><span class="bubble b-violet">⋯</span>All</span>
+      </div>
+      <div style="flex:1"></div>
+      <div class="step2">
+        <div class="head"><span class="bubble b-coral">🍽️</span><div style="flex:1"><div class="mini">Category</div><b>Cafe &amp; Restaurants</b></div><span class="pill ghost">Change</span></div>
+        <div class="amount"><span class="cur">EGP</span><span class="val">350</span></div>
+        <div class="meta" style="padding-bottom:12px"><span class="pill">📅 Today</span><span class="pill ghost">✎ Add note</span></div>
+        <div class="save" style="margin:0">Add expense</div>
+      </div>
+      <div style="height:16px"></div>
+    </div>
+  </section>
+
+</div>
+<footer>Tell me <b>A</b>, <b>B</b> or <b>C</b> (or mix parts, e.g. “B with A’s keypad”).</footer>
+</body>
+</html>
