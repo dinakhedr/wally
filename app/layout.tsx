@@ -9,7 +9,13 @@ export const metadata: Metadata = {
   title: "Wally",
   description: "Knows where your money goes.",
   appleWebApp: { capable: true, title: "Wally", statusBarStyle: "default" },
-  icons: { apple: "/apple-touch-icon.png" },
+  icons: {
+    icon: [
+      { url: "/favicon.ico", sizes: "48x48" },
+      { url: "/icon.svg", type: "image/svg+xml" },
+    ],
+    apple: "/apple-touch-icon.png",
+  },
   // iOS still keys full-screen mode off this older tag.
   other: { "apple-mobile-web-app-capable": "yes" },
 };

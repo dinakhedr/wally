@@ -98,7 +98,7 @@ trigger creates the profile and the starter categories
 ## Roadmap
 
 1. ✅ Scaffold, schema, Google sign-in, Home / Add / Activity
-2. Plans: bills and installments (CRUD, mark paid → creates the expense)
+2. Plans: bills and installments (add / edit, mark a month paid)
 3. Insights: Overview, Spending, Savings + Goals
 4. Settings: categories and budgets
 5. ✅ Import from the Google Sheet
