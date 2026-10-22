@@ -53,6 +53,14 @@ export default async function ActivityPage({ searchParams }: { searchParams: Pro
   const { spent: expensesSpent, earned } = totals(monthTotals);
   const spent = expensesSpent + paid.bills + paid.installments;
 
+  // Income by category, largest first; beyond four, the rest are grouped.
+  const bySource = new Map<string, number>();
+  for (const e of monthTotals)
+    if (e.kind === "income") bySource.set(e.category?.name ?? "Other", (bySource.get(e.category?.name ?? "Other") ?? 0) + e.amount);
+  const sources = [...bySource].sort((a, b) => b[1] - a[1]);
+  const earnedRows: [string, number][] =
+    sources.length > 4 ? [...sources.slice(0, 3), ["Other", sources.slice(3).reduce((n, [, v]) => n + v, 0)]] : sources;
+
   const days = new Map<string, Entry[]>();
   for (const e of entries) days.set(e.date, [...(days.get(e.date) ?? []), e]);
 
@@ -77,7 +85,7 @@ export default async function ActivityPage({ searchParams }: { searchParams: Pro
       <div className="mt-3 grid grid-cols-2 gap-3">
         <div className="rounded-2xl bg-coral-soft p-4">
           <p className="text-xs font-bold uppercase tracking-wide text-coral">Spent</p>
-          <p className="mt-1 text-xl font-extrabold tabular-nums">{formatMoney(spent, currency)}</p>
+          <p className="mt-1 text-xl font-extrabold tabular-nums">{formatMoney(Math.round(spent), currency)}</p>
           <dl className="mt-2 space-y-0.5 text-xs text-muted">
             {[
               ["Expenses", expensesSpent],
@@ -93,7 +101,19 @@ export default async function ActivityPage({ searchParams }: { searchParams: Pro
         </div>
         <div className="rounded-2xl bg-mint-soft p-4">
           <p className="text-xs font-bold uppercase tracking-wide text-mint">Earned</p>
-          <p className="mt-1 text-xl font-extrabold tabular-nums">{formatMoney(earned, currency)}</p>
+          <p className="mt-1 text-xl font-extrabold tabular-nums">{formatMoney(Math.round(earned), currency)}</p>
+          <dl className="mt-2 space-y-0.5 text-xs text-muted">
+            {earnedRows.length ? (
+              earnedRows.map(([label, value]) => (
+                <div key={label} className="flex justify-between gap-2">
+                  <dt className="truncate">{label}</dt>
+                  <dd className="shrink-0 font-semibold tabular-nums text-ink">{formatMoney(Math.round(value), currency)}</dd>
+                </div>
+              ))
+            ) : (
+              <div>No income this month</div>
+            )}
+          </dl>
         </div>
       </div>
 
