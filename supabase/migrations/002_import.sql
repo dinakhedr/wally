@@ -46,10 +46,8 @@ begin
     raise exception 'Not signed in';
   end if;
 
-  -- Categories: add the sheet's alongside the user's own. A category that
-  -- already exists by (kind, name) is kept as it is; it only picks up the
-  -- sheet's budget if it doesn't have one.
-  -- Names match ignoring case ("Personal care" = "Personal Care").
+  -- Categories the user chose to add. One that already exists by (kind, name),
+  -- ignoring case ("Personal care" = "Personal Care"), is left exactly as it is.
   for r in select * from jsonb_array_elements(coalesce(p -> 'categories', '[]')) loop
     select id into cat from public.categories
      where user_id = uid and kind = r ->> 'kind' and lower(name) = lower(r ->> 'name')
@@ -61,8 +59,6 @@ begin
         (r ->> 'budget')::numeric, coalesce((r ->> 'archived')::boolean, false), 100 + coalesce((r ->> 'sort')::int, 0)
       );
       n_categories := n_categories + 1;
-    else
-      update public.categories set budget = coalesce(budget, (r ->> 'budget')::numeric) where id = cat;
     end if;
   end loop;
 

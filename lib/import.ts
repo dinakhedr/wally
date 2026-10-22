@@ -23,6 +23,8 @@ export type ImportCategory = {
   budget: number | null;
   archived: boolean;
   sort: number;
+  /** How many expenses, income entries and bills use it (for the matching screen). */
+  uses: number;
 };
 type Entry = { key: string; date: string; category: string | null; amount: number; note: string | null; created_at: string | null };
 /** A paid month of a bill or installment. History only — not an expense. */
@@ -224,9 +226,9 @@ export function buildImport(sheets: SheetInput, today: string): { payload: Impor
     return s ? (alias.get(s.toLowerCase()) ?? s) : null;
   };
 
-  // Track which (kind, name) pairs the data actually uses.
-  const used = { expense: new Set<string>(), income: new Set<string>() };
-  const use = (kind: Kind, name: string | null) => name && used[kind].add(name);
+  // Count how often each (kind, name) is used; only used categories are imported.
+  const used = { expense: new Map<string, number>(), income: new Map<string, number>() };
+  const use = (kind: Kind, name: string | null) => name && used[kind].set(name, (used[kind].get(name) ?? 0) + 1);
 
   const entry = (r: Row, key: string, dateCols: string[], kind: Kind, note?: string | null): Entry | null => {
     const date = toDate(get(r, ...dateCols));
@@ -339,45 +341,24 @@ export function buildImport(sheets: SheetInput, today: string): { payload: Impor
     return [{ parent_key: plan.key, date, amount: money(amount), seq }];
   });
 
-  // Categories: every one the sheet lists, under the kind(s) it's really used as,
-  // plus any the data mentions that the Categories tab doesn't.
+  // Categories the data uses, styled from the Categories tab when it lists them.
   const categories: ImportCategory[] = [];
-  const seen = new Set<string>();
-  const push = (c: ImportCategory) => {
-    const k = `${c.kind}:${c.name.toLowerCase()}`;
-    if (seen.has(k)) return;
-    seen.add(k);
-    categories.push(c);
-  };
-
-  for (const c of sheetCats) {
-    const kinds = (["expense", "income"] as const).filter((k) => used[k].has(c.name));
-    for (const kind of kinds.length ? kinds : [c.kind]) {
-      push({
-        kind,
-        name: c.name,
-        emoji: c.emoji || (kind === "income" ? "💰" : "📦"),
-        color: tintFor(c.bg, kind === "income" ? "mint" : "violet"),
-        budget: kind === "expense" && c.budget && c.budget > 0 ? money(c.budget) : null,
-        archived: c.hidden,
-        sort: c.sort,
-      });
-    }
-  }
-  let extra = sheetCats.length;
   for (const kind of ["expense", "income"] as const) {
-    for (const name of used[kind]) {
-      push({
+    for (const [name, uses] of used[kind]) {
+      const c = sheetCats.find((sc) => sc.name === name);
+      categories.push({
         kind,
         name,
-        emoji: kind === "income" ? "💰" : "🔁",
-        color: kind === "income" ? "mint" : "sky",
-        budget: null,
+        emoji: c?.emoji || (kind === "income" ? "💰" : "📦"),
+        color: c ? tintFor(c.bg, kind === "income" ? "mint" : "violet") : kind === "income" ? "mint" : "sky",
+        budget: kind === "expense" && c?.budget && c.budget > 0 ? money(c.budget) : null,
         archived: false,
-        sort: ++extra,
+        sort: c?.sort ?? sheetCats.length + categories.length + 1,
+        uses,
       });
     }
   }
+  categories.sort((a, b) => a.kind.localeCompare(b.kind) || b.uses - a.uses);
 
   const dates = [...expenses, ...income].map((e) => e.date).sort();
 
@@ -397,3 +378,75 @@ export function buildImport(sheets: SheetInput, today: string): { payload: Impor
     },
   };
 }
+
+// ─── Matching sheet categories to Wally's ────────────────────────────────────
+
+export type WallyCategory = { kind: Kind; name: string; emoji: string };
+
+/** "new" = add the sheet category to Wally; otherwise the Wally category's name. */
+export type CategoryChoice = "new" | string;
+
+const catKey = (kind: Kind, name: string) => `${kind}:${name.toLowerCase()}`;
+
+// Words in a sheet category name that point at one of Wally's starter categories.
+const HINTS: Record<string, string[]> = {
+  groceries: ["supermarket", "grocery", "groceries", "market", "food"],
+  "dining out": ["restaurant", "dining", "takeaway", "delivery", "eating"],
+  coffee: ["cafe", "café", "coffee"],
+  transport: ["petrol", "fuel", "gas station", "car", "uber", "careem", "taxi", "ride", "transport", "transportation", "parking", "metro"],
+  bills: ["utilities", "utility", "electric", "water", "internet", "phone", "mobile", "vodafone", "orange", "etisalat", "bill"],
+  home: ["rent", "home", "house", "furniture", "repairs"],
+  shopping: ["shopping", "clothes", "electronics", "amazon"],
+  health: ["health", "pharmacy", "doctor", "medical", "gym", "clinic"],
+  fun: ["fun", "entertainment", "games", "gaming", "movies", "cinema"],
+  subscriptions: ["subscription", "digital", "software", "streaming", "music", "podcast", "apps"],
+  education: ["education", "course", "books", "school", "tuition"],
+  gifts: ["gift", "charity", "donation"],
+  travel: ["travel", "flight", "hotel", "trip"],
+  "personal care": ["personal", "care", "beauty", "skin", "salon", "barber"],
+  salary: ["salary", "wage", "pay", "overtime", "bonus"],
+  freelance: ["freelance", "commission", "side"],
+  gift: ["gift"],
+};
+
+/**
+ * What to do with each sheet category: same name (ignoring case) → that Wally
+ * category, a likely match → the suggestion, otherwise "new". `exact` marks the
+ * ones matched by name, which don't need asking.
+ */
+export function suggestCategories(categories: ImportCategory[], wally: WallyCategory[]) {
+  const choices: Record<string, CategoryChoice> = {};
+  const exact = new Set<string>();
+  for (const c of categories) {
+    const key = catKey(c.kind, c.name);
+    const sameKind = wally.filter((w) => w.kind === c.kind);
+    const same = sameKind.find((w) => w.name.toLowerCase() === c.name.toLowerCase());
+    if (same) {
+      choices[key] = same.name;
+      exact.add(key);
+      continue;
+    }
+    const words = ` ${c.name.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ")} `;
+    const hint = sameKind.find((w) => (HINTS[w.name.toLowerCase()] ?? []).some((h) => words.includes(` ${h} `) || words.includes(` ${h}s `)));
+    choices[key] = hint?.name ?? "new";
+  }
+  return { choices, exact };
+}
+
+/** Points every row at the chosen Wally category and keeps only the categories to create. */
+export function applyCategoryChoices(payload: ImportPayload, choices: Record<string, CategoryChoice>): ImportPayload {
+  const target = (kind: Kind, name: string | null) => {
+    if (!name) return null;
+    const choice = choices[catKey(kind, name)];
+    return !choice || choice === "new" ? name : choice;
+  };
+  return {
+    ...payload,
+    categories: payload.categories.filter((c) => (choices[catKey(c.kind, c.name)] ?? "new") === "new"),
+    expenses: payload.expenses.map((e) => ({ ...e, category: target("expense", e.category) })),
+    income: payload.income.map((e) => ({ ...e, category: target("income", e.category) })),
+    recurring: payload.recurring.map((r) => ({ ...r, category: target("expense", r.category) })),
+  };
+}
+
+export { catKey as categoryKey };
