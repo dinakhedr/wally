@@ -5,6 +5,9 @@
  * Tabs: Daily Log, Categories, Recurring, Recurring Log, Installments,
  * Installments Log, Income Log. Columns are found by header name, so order
  * doesn't matter, and every value may arrive as text, number, boolean or Date.
+ *
+ * Recurring → bills and Installments → installments, each with its paid-months
+ * history from the log tabs. Those payments are not turned into expenses.
  */
 import type { Kind, Tint } from "./types";
 
@@ -22,7 +25,8 @@ export type ImportCategory = {
   sort: number;
 };
 type Entry = { key: string; date: string; category: string | null; amount: number; note: string | null; created_at: string | null };
-type Payment = Entry & { parent_key: string };
+/** A paid month of a bill or installment. History only — not an expense. */
+type Payment = { parent_key: string; date: string; amount: number };
 
 export type ImportPayload = {
   categories: ImportCategory[];
@@ -41,7 +45,6 @@ export type ImportPayload = {
   installments: {
     key: string;
     name: string;
-    category: string;
     total: number;
     monthly: number;
     months: number;
@@ -64,7 +67,6 @@ export type ImportSummary = {
   skipped: number;
 };
 
-const INSTALLMENTS_CATEGORY = "Installments";
 const BANKS: Record<string, string> = { NBE: "National Bank of Egypt", CIB: "CIB", BM: "Banque Misr", QNB: "QNB" };
 
 // ─── Cell helpers ────────────────────────────────────────────────────────────
@@ -286,19 +288,16 @@ export function buildImport(sheets: SheetInput, today: string): { payload: Impor
     return [{ key: `rec:${id}`, name, category, amount: money(amount), frequency, next_due: next, active: bool(get(r, "Active"), true) }];
   });
 
-  const recurring_payments = rows(sheets, "Recurring Log")
-    .map((r, i) => {
-      const parent = text(get(r, "RecurringID"));
-      const e = entry(
-        r,
-        `recpay:${parent || `row${i + 2}`}:${text(get(r, "Date"))}:${text(get(r, "Timestamp"))}`,
-        ["Date"],
-        "expense",
-        text(get(r, "Name")) || text(get(r, "Notes")).replace(/^Recurring:\s*/i, "") || null,
-      );
-      return e && { ...e, parent_key: `rec:${parent}` };
-    })
-    .filter((e): e is Payment => e !== null);
+  const recurring_payments = rows(sheets, "Recurring Log").flatMap((r) => {
+    const parent = text(get(r, "RecurringID"));
+    const date = toDate(get(r, "Date"));
+    const amount = num(get(r, "Amount"));
+    if (!parent || !date || amount == null || amount < 0) {
+      if (Object.values(r).some((v) => text(v) !== "")) skipped++;
+      return [];
+    }
+    return [{ parent_key: `rec:${parent}`, date, amount: money(amount) }];
+  });
 
   // Installments
   const installments = rows(sheets, "Installments").flatMap((r) => {
@@ -314,12 +313,10 @@ export function buildImport(sheets: SheetInput, today: string): { payload: Impor
       return [];
     }
     const bank = text(get(r, "BankKey"));
-    use("expense", INSTALLMENTS_CATEGORY);
     return [
       {
         key: `inst:${id}`,
         name,
-        category: INSTALLMENTS_CATEGORY,
         total: money(total),
         monthly: money(num(get(r, "MonthlyAmount")) ?? total / months),
         months: Math.round(months),
@@ -330,22 +327,17 @@ export function buildImport(sheets: SheetInput, today: string): { payload: Impor
   });
   const installmentById = new Map(installments.map((i) => [i.key, i]));
 
-  const installment_payments = rows(sheets, "Installments Log")
-    .map((r, i) => {
-      const parent = text(get(r, "InstallmentID"));
-      const plan = installmentById.get(`inst:${parent}`);
-      const date = toDate(get(r, "DatePaid", "Date"));
-      const seq = plan && date ? Math.max(1, monthsBetween(plan.first_due, date) + 1) : 1;
-      const e = entry(
-        { ...r, category: INSTALLMENTS_CATEGORY },
-        `instpay:${parent || `row${i + 2}`}:${text(get(r, "DatePaid", "Date"))}:${text(get(r, "Timestamp"))}`,
-        ["DatePaid", "Date"],
-        "expense",
-        plan ? `${plan.name} · ${seq}/${plan.months}${plan.note ? ` · ${plan.note}` : ""}` : text(get(r, "Notes")) || null,
-      );
-      return e && { ...e, parent_key: `inst:${parent}`, seq };
-    })
-    .filter((e): e is Payment & { seq: number } => e !== null);
+  const installment_payments = rows(sheets, "Installments Log").flatMap((r) => {
+    const plan = installmentById.get(`inst:${text(get(r, "InstallmentID"))}`);
+    const date = toDate(get(r, "DatePaid", "Date"));
+    const amount = num(get(r, "AmountPaid", "Amount"));
+    if (!plan || !date || amount == null || amount < 0) {
+      if (Object.values(r).some((v) => text(v) !== "")) skipped++;
+      return [];
+    }
+    const seq = Math.min(plan.months, Math.max(1, monthsBetween(plan.first_due, date) + 1));
+    return [{ parent_key: plan.key, date, amount: money(amount), seq }];
+  });
 
   // Categories: every one the sheet lists, under the kind(s) it's really used as,
   // plus any the data mentions that the Categories tab doesn't.
@@ -378,7 +370,7 @@ export function buildImport(sheets: SheetInput, today: string): { payload: Impor
       push({
         kind,
         name,
-        emoji: kind === "income" ? "💰" : name === INSTALLMENTS_CATEGORY ? "🔄" : "🔁",
+        emoji: kind === "income" ? "💰" : "🔁",
         color: kind === "income" ? "mint" : "sky",
         budget: null,
         archived: false,
@@ -387,7 +379,7 @@ export function buildImport(sheets: SheetInput, today: string): { payload: Impor
     }
   }
 
-  const dates = [...expenses, ...income, ...recurring_payments, ...installment_payments].map((e) => e.date).sort();
+  const dates = [...expenses, ...income].map((e) => e.date).sort();
 
   return {
     payload: { categories, expenses, income, recurring, recurring_payments, installments, installment_payments },

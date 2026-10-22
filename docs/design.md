@@ -61,9 +61,11 @@ Add. Settings opens from the profile picture in every page header.
 
 ### Settings
 - Currency and monthly budget ✅
-- Import from the old Google Sheet ✅ — upload the sheet as .xlsx; every tab is
-  imported (bill and installment payments become linked expenses). Re-importing
-  never duplicates rows (`import_key`).
+- Import from the old Google Sheet ✅ — upload the sheet as .xlsx. Daily Log →
+  expenses, Income Log → income, Recurring → bills, Installments →
+  installments; the log tabs become each bill's / installment's paid months
+  (not expenses). Sheet categories are added next to Wally's, merging same
+  names. Re-importing never duplicates rows.
 - Categories (add / edit / archive, per-category budgets), preferences — next.
 
 ## Data

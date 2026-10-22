@@ -79,7 +79,7 @@ const IMPORT_LISTS = [
   "installment_payments",
 ] as const;
 
-export async function importSheet(payload: ImportPayload, hideUnusedStarters: boolean): Promise<ImportResult> {
+export async function importSheet(payload: ImportPayload): Promise<ImportResult> {
   const { supabase } = await requireUser();
 
   if (!payload || typeof payload !== "object" || IMPORT_LISTS.some((k) => !Array.isArray(payload[k]))) {
@@ -89,7 +89,7 @@ export async function importSheet(payload: ImportPayload, hideUnusedStarters: bo
     return { ok: false, error: "That sheet is too big to import in one go." };
   }
 
-  const { data, error } = await supabase.rpc("import_sheet", { p: payload, hide_unused_starters: hideUnusedStarters });
+  const { data, error } = await supabase.rpc("import_sheet", { p: payload });
   if (error) {
     console.error("import_sheet failed", error);
     return {

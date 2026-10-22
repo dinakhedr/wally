@@ -16,7 +16,6 @@ export function ImportForm({ today }: { today: string }) {
   const [parsed, setParsed] = useState<Parsed | null>(null);
   const [reading, setReading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [hideStarters, setHideStarters] = useState(true);
   const [done, setDone] = useState<Record<string, number> | null>(null);
   const [pending, startTransition] = useTransition();
 
@@ -50,7 +49,7 @@ export function ImportForm({ today }: { today: string }) {
   function runImport() {
     if (!parsed) return;
     startTransition(async () => {
-      const result = await importSheet(parsed.payload, hideStarters);
+      const result = await importSheet(parsed.payload);
       if (result.ok) {
         setDone(result.counts);
         setParsed(null);
@@ -126,14 +125,14 @@ export function ImportForm({ today }: { today: string }) {
           <ul className="mt-4 grid grid-cols-2 gap-2 text-sm">
             <Stat label="Expenses" value={parsed.summary.expenses} tone="bg-coral-soft" />
             <Stat label="Income" value={parsed.summary.income} tone="bg-mint-soft" />
-            <Stat label="Bills" value={parsed.summary.recurring} sub={`${parsed.summary.recurringPayments} payments`} tone="bg-sky-soft" />
+            <Stat label="Bills" value={parsed.summary.recurring} sub={`${parsed.summary.recurringPayments} paid months`} tone="bg-sky-soft" />
             <Stat
               label="Installments"
               value={parsed.summary.installments}
-              sub={`${parsed.summary.installmentPayments} payments`}
+              sub={`${parsed.summary.installmentPayments} paid months`}
               tone="bg-sky-soft"
             />
-            <Stat label="Categories" value={parsed.summary.categories} tone="bg-violet-soft" />
+            <Stat label="Categories" value={parsed.summary.categories} sub="from your sheet" tone="bg-violet-soft" />
           </ul>
           {parsed.summary.skipped > 0 && (
             <p className="mt-3 text-xs text-muted">
@@ -141,20 +140,11 @@ export function ImportForm({ today }: { today: string }) {
             </p>
           )}
 
-          <label className="mt-4 flex items-start gap-3 text-sm">
-            <input
-              type="checkbox"
-              checked={hideStarters}
-              onChange={(e) => setHideStarters(e.target.checked)}
-              className="mt-0.5 h-5 w-5 accent-[var(--violet)]"
-            />
-            <span>
-              <span className="font-semibold">Use my sheet’s categories</span>
-              <span className="block text-muted">Hides Wally’s starter categories that you don’t use.</span>
-            </span>
-          </label>
-
-          <p className="mt-4 text-xs text-muted">Bill and installment payments are added as expenses. Importing the same sheet again won’t create duplicates.</p>
+          <ul className="mt-4 space-y-1 text-xs text-muted">
+            <li>• Your sheet’s categories are added next to Wally’s. Ones with the same name are merged.</li>
+            <li>• Bills and installments come in with the months you’ve already paid.</li>
+            <li>• Importing the same sheet again won’t create duplicates.</li>
+          </ul>
 
           <button
             onClick={runImport}
