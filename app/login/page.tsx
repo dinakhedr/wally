@@ -18,6 +18,10 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
       <p className="mt-8 max-w-xs text-xs text-muted">
         Your data is private to your account. Nobody else — not even friends using Wally — can see it.
       </p>
+      <p className="mt-4 flex gap-4 text-xs font-semibold text-muted">
+        <a href="/privacy" className="hover:text-violet">Privacy policy</a>
+        <a href="/terms" className="hover:text-violet">Terms of service</a>
+      </p>
     </main>
   );
 }
