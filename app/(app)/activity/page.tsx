@@ -3,7 +3,7 @@ import { ChevronLeft, ChevronRight, Search } from "lucide-react";
 import { DeleteButton } from "@/components/DeleteButton";
 import { EntryRow } from "@/components/EntryRow";
 import { PageHeader } from "@/components/PageHeader";
-import { getEntries, getProfile, totals } from "@/lib/data";
+import { getEntries, getPlanPayments, getProfile, totals } from "@/lib/data";
 import { dayLabel, formatMoney, monthBounds } from "@/lib/format";
 import { requireUser } from "@/lib/supabase/server";
 import { getNow } from "@/lib/today";
@@ -42,12 +42,17 @@ export default async function ActivityPage({ searchParams }: { searchParams: Pro
   const isCurrent = monthKey(monthDate) === monthKey(now);
   const kind = params.type === "expense" || params.type === "income" ? params.type : "all";
 
-  const [profile, entries] = await Promise.all([
+  const [profile, entries, monthTotals, paid] = await Promise.all([
     getProfile(supabase, user.id),
     getEntries(supabase, { from: start, to: end, kind, search: params.q?.trim() }),
+    getEntries(supabase, { from: start, to: end }),
+    getPlanPayments(supabase, start, end),
   ]);
   const { currency } = profile;
-  const { spent, earned } = totals(entries);
+  // Month totals ignore the search/filter; spending includes bills and installments paid.
+  const { spent: expensesSpent, earned } = totals(monthTotals);
+  const planPaid = paid.bills + paid.installments;
+  const spent = expensesSpent + planPaid;
 
   const days = new Map<string, Entry[]>();
   for (const e of entries) days.set(e.date, [...(days.get(e.date) ?? []), e]);
@@ -74,6 +79,7 @@ export default async function ActivityPage({ searchParams }: { searchParams: Pro
         <div className="rounded-2xl bg-coral-soft p-4">
           <p className="text-xs font-bold uppercase tracking-wide text-coral">Spent</p>
           <p className="mt-1 text-xl font-extrabold tabular-nums">{formatMoney(spent, currency)}</p>
+          {planPaid > 0 && <p className="text-xs text-muted">incl. {formatMoney(planPaid, currency)} bills & installments</p>}
         </div>
         <div className="rounded-2xl bg-mint-soft p-4">
           <p className="text-xs font-bold uppercase tracking-wide text-mint">Earned</p>

@@ -61,10 +61,21 @@ Add. Settings opens from the profile picture in every page header.
 
 ### Settings
 - Currency and monthly budget ✅
-- Import from the old Google Sheet ✅ — upload the sheet as .xlsx; every tab is
-  imported (bill and installment payments become linked expenses). Re-importing
-  never duplicates rows (`import_key`).
+- Import from the old Google Sheet ✅ — upload the sheet as .xlsx.
+  - Daily Log → expenses, Income Log → income
+  - Recurring → **bills** and Installments → **installments**, each with its
+    paid months from the log tabs (history only, not expenses)
+  - Categories: same name as a Wally category (ignoring case) → merged
+    automatically; otherwise the user picks a Wally category (pre-selected
+    suggestion, e.g. Cafe → Cafe & Restaurants, Supermarket → Groceries) or
+    "Add as new". Existing Wally categories are never modified.
+  - Re-importing never duplicates rows.
 - Categories (add / edit / archive, per-category budgets), preferences — next.
+
+### Totals
+**Total spending = expenses + bill payments + installment payments** for the
+period. They stay separate in the data; Home's “Left to spend” and Activity's
+“Spent” add them up (with a breakdown), and Insights will do the same.
 
 ## Data
 
@@ -72,7 +83,17 @@ Add. Settings opens from the profile picture in every page header.
 recurring_payments, installments, installment_payments, goals. Every table has
 Row Level Security (`user_id = auth.uid()`), and child rows reference parents
 through `(id, user_id)` so they can’t point at another user’s data. A sign-up
-trigger creates the profile and 19 starter categories.
+trigger creates the profile and the starter categories
+(`public.starter_categories()`):
+
+- **Expenses:** 🛒 Groceries · 🍽️ Cafe & Restaurants · 🚗 Transport · ⛽ Petrol ·
+  🔧 Car Maintenance · 🚕 Ride Hailing · 💡 Bills · 📶 Internet · ⚡ Utilities ·
+  🏠 Home · 🔑 Rent · 🛍️ Shopping · 💊 Health · 🏋️ Gym · 💅 Personal care · 🎬 Fun ·
+  📺 Subscriptions · 📚 Education · 🎁 Gifts · 🏥 Charity · ✈️ Travel · 🐾 Pets ·
+  🚬 Smoking · 🤝 Lent Money · 💸 Debt Repayment
+- **Income:** 💼 Salary · 💻 Freelance · 🎉 Bonus · ⏰ Overtime · 📊 Commission ·
+  🏦 Bank Interest · 📋 Certificate Interest · 📈 Dividends · 🏠 Rental Income ·
+  🎁 Gift · 🔄 Refund · 💰 Money Returned · 📥 Borrowed Money
 
 ## Roadmap
 

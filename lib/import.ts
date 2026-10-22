@@ -5,6 +5,9 @@
  * Tabs: Daily Log, Categories, Recurring, Recurring Log, Installments,
  * Installments Log, Income Log. Columns are found by header name, so order
  * doesn't matter, and every value may arrive as text, number, boolean or Date.
+ *
+ * Recurring → bills and Installments → installments, each with its paid-months
+ * history from the log tabs. Those payments are not turned into expenses.
  */
 import type { Kind, Tint } from "./types";
 
@@ -20,9 +23,12 @@ export type ImportCategory = {
   budget: number | null;
   archived: boolean;
   sort: number;
+  /** How many expenses, income entries and bills use it (for the matching screen). */
+  uses: number;
 };
 type Entry = { key: string; date: string; category: string | null; amount: number; note: string | null; created_at: string | null };
-type Payment = Entry & { parent_key: string };
+/** A paid month of a bill or installment. History only — not an expense. */
+type Payment = { parent_key: string; date: string; amount: number };
 
 export type ImportPayload = {
   categories: ImportCategory[];
@@ -41,7 +47,6 @@ export type ImportPayload = {
   installments: {
     key: string;
     name: string;
-    category: string;
     total: number;
     monthly: number;
     months: number;
@@ -64,7 +69,6 @@ export type ImportSummary = {
   skipped: number;
 };
 
-const INSTALLMENTS_CATEGORY = "Installments";
 const BANKS: Record<string, string> = { NBE: "National Bank of Egypt", CIB: "CIB", BM: "Banque Misr", QNB: "QNB" };
 
 // ─── Cell helpers ────────────────────────────────────────────────────────────
@@ -222,9 +226,9 @@ export function buildImport(sheets: SheetInput, today: string): { payload: Impor
     return s ? (alias.get(s.toLowerCase()) ?? s) : null;
   };
 
-  // Track which (kind, name) pairs the data actually uses.
-  const used = { expense: new Set<string>(), income: new Set<string>() };
-  const use = (kind: Kind, name: string | null) => name && used[kind].add(name);
+  // Count how often each (kind, name) is used; only used categories are imported.
+  const used = { expense: new Map<string, number>(), income: new Map<string, number>() };
+  const use = (kind: Kind, name: string | null) => name && used[kind].set(name, (used[kind].get(name) ?? 0) + 1);
 
   const entry = (r: Row, key: string, dateCols: string[], kind: Kind, note?: string | null): Entry | null => {
     const date = toDate(get(r, ...dateCols));
@@ -286,19 +290,16 @@ export function buildImport(sheets: SheetInput, today: string): { payload: Impor
     return [{ key: `rec:${id}`, name, category, amount: money(amount), frequency, next_due: next, active: bool(get(r, "Active"), true) }];
   });
 
-  const recurring_payments = rows(sheets, "Recurring Log")
-    .map((r, i) => {
-      const parent = text(get(r, "RecurringID"));
-      const e = entry(
-        r,
-        `recpay:${parent || `row${i + 2}`}:${text(get(r, "Date"))}:${text(get(r, "Timestamp"))}`,
-        ["Date"],
-        "expense",
-        text(get(r, "Name")) || text(get(r, "Notes")).replace(/^Recurring:\s*/i, "") || null,
-      );
-      return e && { ...e, parent_key: `rec:${parent}` };
-    })
-    .filter((e): e is Payment => e !== null);
+  const recurring_payments = rows(sheets, "Recurring Log").flatMap((r) => {
+    const parent = text(get(r, "RecurringID"));
+    const date = toDate(get(r, "Date"));
+    const amount = num(get(r, "Amount"));
+    if (!parent || !date || amount == null || amount < 0) {
+      if (Object.values(r).some((v) => text(v) !== "")) skipped++;
+      return [];
+    }
+    return [{ parent_key: `rec:${parent}`, date, amount: money(amount) }];
+  });
 
   // Installments
   const installments = rows(sheets, "Installments").flatMap((r) => {
@@ -314,12 +315,10 @@ export function buildImport(sheets: SheetInput, today: string): { payload: Impor
       return [];
     }
     const bank = text(get(r, "BankKey"));
-    use("expense", INSTALLMENTS_CATEGORY);
     return [
       {
         key: `inst:${id}`,
         name,
-        category: INSTALLMENTS_CATEGORY,
         total: money(total),
         monthly: money(num(get(r, "MonthlyAmount")) ?? total / months),
         months: Math.round(months),
@@ -330,64 +329,38 @@ export function buildImport(sheets: SheetInput, today: string): { payload: Impor
   });
   const installmentById = new Map(installments.map((i) => [i.key, i]));
 
-  const installment_payments = rows(sheets, "Installments Log")
-    .map((r, i) => {
-      const parent = text(get(r, "InstallmentID"));
-      const plan = installmentById.get(`inst:${parent}`);
-      const date = toDate(get(r, "DatePaid", "Date"));
-      const seq = plan && date ? Math.max(1, monthsBetween(plan.first_due, date) + 1) : 1;
-      const e = entry(
-        { ...r, category: INSTALLMENTS_CATEGORY },
-        `instpay:${parent || `row${i + 2}`}:${text(get(r, "DatePaid", "Date"))}:${text(get(r, "Timestamp"))}`,
-        ["DatePaid", "Date"],
-        "expense",
-        plan ? `${plan.name} · ${seq}/${plan.months}${plan.note ? ` · ${plan.note}` : ""}` : text(get(r, "Notes")) || null,
-      );
-      return e && { ...e, parent_key: `inst:${parent}`, seq };
-    })
-    .filter((e): e is Payment & { seq: number } => e !== null);
-
-  // Categories: every one the sheet lists, under the kind(s) it's really used as,
-  // plus any the data mentions that the Categories tab doesn't.
-  const categories: ImportCategory[] = [];
-  const seen = new Set<string>();
-  const push = (c: ImportCategory) => {
-    const k = `${c.kind}:${c.name.toLowerCase()}`;
-    if (seen.has(k)) return;
-    seen.add(k);
-    categories.push(c);
-  };
-
-  for (const c of sheetCats) {
-    const kinds = (["expense", "income"] as const).filter((k) => used[k].has(c.name));
-    for (const kind of kinds.length ? kinds : [c.kind]) {
-      push({
-        kind,
-        name: c.name,
-        emoji: c.emoji || (kind === "income" ? "💰" : "📦"),
-        color: tintFor(c.bg, kind === "income" ? "mint" : "violet"),
-        budget: kind === "expense" && c.budget && c.budget > 0 ? money(c.budget) : null,
-        archived: c.hidden,
-        sort: c.sort,
-      });
+  const installment_payments = rows(sheets, "Installments Log").flatMap((r) => {
+    const plan = installmentById.get(`inst:${text(get(r, "InstallmentID"))}`);
+    const date = toDate(get(r, "DatePaid", "Date"));
+    const amount = num(get(r, "AmountPaid", "Amount"));
+    if (!plan || !date || amount == null || amount < 0) {
+      if (Object.values(r).some((v) => text(v) !== "")) skipped++;
+      return [];
     }
-  }
-  let extra = sheetCats.length;
+    const seq = Math.min(plan.months, Math.max(1, monthsBetween(plan.first_due, date) + 1));
+    return [{ parent_key: plan.key, date, amount: money(amount), seq }];
+  });
+
+  // Categories the data uses, styled from the Categories tab when it lists them.
+  const categories: ImportCategory[] = [];
   for (const kind of ["expense", "income"] as const) {
-    for (const name of used[kind]) {
-      push({
+    for (const [name, uses] of used[kind]) {
+      const c = sheetCats.find((sc) => sc.name === name);
+      categories.push({
         kind,
         name,
-        emoji: kind === "income" ? "💰" : name === INSTALLMENTS_CATEGORY ? "🔄" : "🔁",
-        color: kind === "income" ? "mint" : "sky",
-        budget: null,
+        emoji: c?.emoji || (kind === "income" ? "💰" : "📦"),
+        color: c ? tintFor(c.bg, kind === "income" ? "mint" : "violet") : kind === "income" ? "mint" : "sky",
+        budget: kind === "expense" && c?.budget && c.budget > 0 ? money(c.budget) : null,
         archived: false,
-        sort: ++extra,
+        sort: c?.sort ?? sheetCats.length + categories.length + 1,
+        uses,
       });
     }
   }
+  categories.sort((a, b) => a.kind.localeCompare(b.kind) || b.uses - a.uses);
 
-  const dates = [...expenses, ...income, ...recurring_payments, ...installment_payments].map((e) => e.date).sort();
+  const dates = [...expenses, ...income].map((e) => e.date).sort();
 
   return {
     payload: { categories, expenses, income, recurring, recurring_payments, installments, installment_payments },
@@ -405,3 +378,99 @@ export function buildImport(sheets: SheetInput, today: string): { payload: Impor
     },
   };
 }
+
+// ─── Matching sheet categories to Wally's ────────────────────────────────────
+
+export type WallyCategory = { kind: Kind; name: string; emoji: string };
+
+/** "new" = add the sheet category to Wally; otherwise the Wally category's name. */
+export type CategoryChoice = "new" | string;
+
+const catKey = (kind: Kind, name: string) => `${kind}:${name.toLowerCase()}`;
+
+// Words in a sheet category name that point at one of Wally's starter
+// categories. Whole words only; a trailing "s" is allowed. First match wins,
+// in the order of the user's own categories.
+const HINTS: Record<string, string[]> = {
+  // expenses
+  groceries: ["supermarket", "grocery", "groceries", "market", "food", "coffee"],
+  "cafe & restaurants": ["cafe", "café", "restaurant", "dining", "takeaway", "delivery", "eating"],
+  transport: ["transport", "transportation", "parking", "metro", "bus", "train"],
+  petrol: ["petrol", "fuel", "benzine"],
+  "car maintenance": ["car", "mechanic", "tyre", "tire"],
+  "ride hailing": ["uber", "careem", "taxi", "ride", "hailing"],
+  bills: ["bill", "phone", "mobile", "vodafone", "orange", "etisalat"],
+  internet: ["internet", "wifi", "broadband", "data"],
+  utilities: ["utility", "utilities", "electric", "electricity", "water", "gas"],
+  home: ["home", "house", "furniture", "repair"],
+  rent: ["rent"],
+  shopping: ["shopping", "clothes", "electronic", "electronics", "amazon"],
+  health: ["health", "pharmacy", "doctor", "medical", "clinic", "medicine"],
+  gym: ["gym", "fitness", "sport"],
+  "personal care": ["personal", "beauty", "skin", "salon", "barber"],
+  fun: ["fun", "entertainment", "game", "gaming", "movie", "cinema"],
+  subscriptions: ["subscription", "digital", "software", "streaming", "music", "podcast", "app", "tool"],
+  education: ["education", "course", "book", "school", "tuition"],
+  gifts: ["gift", "present"],
+  charity: ["charity", "donation", "zakat", "sadaqa"],
+  travel: ["travel", "flight", "hotel", "trip"],
+  pets: ["pet", "vet"],
+  smoking: ["smoking", "cigarette", "vape", "tobacco"],
+  "lent money": ["lent", "lend", "lending"],
+  "debt repayment": ["debt", "repayment", "repay"],
+  // income
+  salary: ["salary", "wage", "payroll"],
+  freelance: ["freelance", "side", "project"],
+  gift: ["gift"],
+  "bank interest": ["interest", "savings"],
+  "money returned": ["repayment", "returned", "back"],
+  commission: ["commission"],
+  overtime: ["overtime"],
+  bonus: ["bonus"],
+  "rental income": ["rent", "rental"],
+  dividends: ["dividend", "stock", "share"],
+  refund: ["refund", "cashback"],
+  "borrowed money": ["borrowed", "borrow", "loan"],
+};
+
+/**
+ * What to do with each sheet category: same name (ignoring case) → that Wally
+ * category, a likely match → the suggestion, otherwise "new". `exact` marks the
+ * ones matched by name, which don't need asking.
+ */
+export function suggestCategories(categories: ImportCategory[], wally: WallyCategory[]) {
+  const choices: Record<string, CategoryChoice> = {};
+  const exact = new Set<string>();
+  for (const c of categories) {
+    const key = catKey(c.kind, c.name);
+    const sameKind = wally.filter((w) => w.kind === c.kind);
+    const same = sameKind.find((w) => w.name.toLowerCase() === c.name.toLowerCase());
+    if (same) {
+      choices[key] = same.name;
+      exact.add(key);
+      continue;
+    }
+    const words = ` ${c.name.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ")} `;
+    const hint = sameKind.find((w) => (HINTS[w.name.toLowerCase()] ?? []).some((h) => words.includes(` ${h} `) || words.includes(` ${h}s `)));
+    choices[key] = hint?.name ?? "new";
+  }
+  return { choices, exact };
+}
+
+/** Points every row at the chosen Wally category and keeps only the categories to create. */
+export function applyCategoryChoices(payload: ImportPayload, choices: Record<string, CategoryChoice>): ImportPayload {
+  const target = (kind: Kind, name: string | null) => {
+    if (!name) return null;
+    const choice = choices[catKey(kind, name)];
+    return !choice || choice === "new" ? name : choice;
+  };
+  return {
+    ...payload,
+    categories: payload.categories.filter((c) => (choices[catKey(c.kind, c.name)] ?? "new") === "new"),
+    expenses: payload.expenses.map((e) => ({ ...e, category: target("expense", e.category) })),
+    income: payload.income.map((e) => ({ ...e, category: target("income", e.category) })),
+    recurring: payload.recurring.map((r) => ({ ...r, category: target("expense", r.category) })),
+  };
+}
+
+export { catKey as categoryKey };

@@ -5,7 +5,7 @@ import { CategoryBubble } from "@/components/CategoryBubble";
 import { EntryRow } from "@/components/EntryRow";
 import { PageHeader } from "@/components/PageHeader";
 import { Toast } from "@/components/Toast";
-import { getCategories, getEntries, getProfile, getUpcomingBills, sortByRecent, totals } from "@/lib/data";
+import { getCategories, getEntries, getPlanPayments, getProfile, getUpcomingBills, sortByRecent, totals } from "@/lib/data";
 import { dueLabel, formatMoney, monthBounds, toISODate } from "@/lib/format";
 import { requireUser } from "@/lib/supabase/server";
 import { getNow } from "@/lib/today";
@@ -25,15 +25,18 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
   const in14 = new Date(now);
   in14.setDate(in14.getDate() + 14);
 
-  const [profile, categories, monthEntries, bills] = await Promise.all([
+  const [profile, categories, monthEntries, bills, paid] = await Promise.all([
     getProfile(supabase, user.id),
     getCategories(supabase, "expense"),
     getEntries(supabase, { from: month.start, to: month.end }),
     getUpcomingBills(supabase, toISODate(in14), 3),
+    getPlanPayments(supabase, month.start, month.end),
   ]);
 
   const { currency } = profile;
-  const { spent, earned } = totals(monthEntries);
+  // Total spending = expenses + bills paid + installments paid.
+  const { spent: expensesSpent, earned } = totals(monthEntries);
+  const spent = expensesSpent + paid.bills + paid.installments;
   const categoryBudgets = categories.reduce((sum, c) => sum + (c.budget ?? 0), 0);
   const budget = profile.monthly_budget ?? (categoryBudgets > 0 ? categoryBudgets : earned > 0 ? earned : null);
   const budgetSource = profile.monthly_budget != null ? "budget" : categoryBudgets > 0 ? "category budgets" : "income";
@@ -76,11 +79,13 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
               </span>
               {left > 0 && <span>~{formatMoney(Math.floor(perDay), currency)}/day</span>}
             </div>
+            {(paid.bills > 0 || paid.installments > 0) && <SpentBreakdown expenses={expensesSpent} paid={paid} currency={currency} />}
           </>
         ) : (
           <>
             <p className="text-sm font-medium text-white/80">Spent this month</p>
             <p className="mt-1 text-4xl font-extrabold tracking-tight tabular-nums">{formatMoney(spent, currency)}</p>
+            {(paid.bills > 0 || paid.installments > 0) && <SpentBreakdown expenses={expensesSpent} paid={paid} currency={currency} />}
             <Link href="/settings" className="mt-3 inline-flex items-center gap-1 text-sm font-semibold text-white/90">
               Set a monthly budget to see what’s left <ChevronRight size={16} />
             </Link>
@@ -158,5 +163,22 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
 
       {added && <Toast message={added === "income" ? "Income added" : "Expense added"} />}
     </>
+  );
+}
+
+function SpentBreakdown({
+  expenses,
+  paid,
+  currency,
+}: {
+  expenses: number;
+  paid: { bills: number; installments: number };
+  currency: string;
+}) {
+  return (
+    <p className="mt-2 text-xs text-white/70">
+      Expenses {formatMoney(expenses, currency)} · Bills {formatMoney(paid.bills, currency)} · Installments{" "}
+      {formatMoney(paid.installments, currency)}
+    </p>
   );
 }

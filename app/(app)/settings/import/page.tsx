@@ -1,12 +1,14 @@
 import Link from "next/link";
 import { ChevronLeft } from "lucide-react";
+import { getCategories } from "@/lib/data";
 import { requireUser } from "@/lib/supabase/server";
 import { getToday } from "@/lib/today";
 import { ImportForm } from "./ImportForm";
 
 export default async function ImportPage() {
-  await requireUser();
-  const today = await getToday();
+  const { supabase } = await requireUser();
+  const [today, categories] = await Promise.all([getToday(), getCategories(supabase)]);
+  const wally = categories.map(({ kind, name, emoji }) => ({ kind, name, emoji }));
 
   return (
     <>
@@ -16,7 +18,7 @@ export default async function ImportPage() {
         </Link>
         <h1 className="text-2xl font-extrabold tracking-tight">Import from Google Sheet</h1>
       </header>
-      <ImportForm today={today} />
+      <ImportForm today={today} wally={wally} />
     </>
   );
 }
