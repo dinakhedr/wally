@@ -79,13 +79,13 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
               </span>
               {left > 0 && <span>~{formatMoney(Math.floor(perDay), currency)}/day</span>}
             </div>
-            {(paid.bills > 0 || paid.installments > 0) && <SpentBreakdown expenses={expensesSpent} paid={paid} currency={currency} />}
+            <SpentBreakdown expenses={expensesSpent} paid={paid} currency={currency} />
           </>
         ) : (
           <>
             <p className="text-sm font-medium text-white/80">Spent this month</p>
             <p className="mt-1 text-4xl font-extrabold tracking-tight tabular-nums">{formatMoney(spent, currency)}</p>
-            {(paid.bills > 0 || paid.installments > 0) && <SpentBreakdown expenses={expensesSpent} paid={paid} currency={currency} />}
+            <SpentBreakdown expenses={expensesSpent} paid={paid} currency={currency} />
             <Link href="/settings" className="mt-3 inline-flex items-center gap-1 text-sm font-semibold text-white/90">
               Set a monthly budget to see what’s left <ChevronRight size={16} />
             </Link>
@@ -178,8 +178,8 @@ function SpentBreakdown({
 }) {
   return (
     <p className="mt-2 text-xs text-white/70">
-      Expenses {formatMoney(expenses, currency)} · Bills {formatMoney(paid.bills, currency)} · Installments{" "}
-      {formatMoney(paid.installments, currency)}
+      Expenses {formatMoney(Math.round(expenses), currency)} · Bills {formatMoney(Math.round(paid.bills), currency)} · Installments{" "}
+      {formatMoney(Math.round(paid.installments), currency)}
     </p>
   );
 }

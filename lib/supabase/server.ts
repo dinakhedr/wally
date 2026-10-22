@@ -25,12 +25,16 @@ export async function createClient() {
   );
 }
 
-/** Supabase client plus the signed-in user; redirects to /login when signed out. */
+/**
+ * Supabase client plus the signed-in user; redirects to /login when signed out.
+ * getClaims() verifies the session token locally (no Auth server round trip
+ * with asymmetric signing keys), which keeps every page load fast.
+ */
 export async function requireUser() {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
+  const { data } = await supabase.auth.getClaims();
+  const claims = data?.claims;
+  if (!claims?.sub) redirect("/login");
+  const user = { id: claims.sub, email: typeof claims.email === "string" ? claims.email : undefined };
   return { supabase, user };
 }

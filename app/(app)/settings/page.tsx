@@ -1,8 +1,10 @@
+import { cookies } from "next/headers";
 import Link from "next/link";
 import { ChevronRight, FileSpreadsheet, LogOut, Tags } from "lucide-react";
 import { signOut, updateSettings } from "@/app/actions";
 import { Card, SectionTitle } from "@/components/Card";
 import { DangerZone } from "@/components/DangerZone";
+import { ThemePicker } from "@/components/ThemePicker";
 import { PageHeader } from "@/components/PageHeader";
 import { Toast } from "@/components/Toast";
 import { getProfile } from "@/lib/data";
@@ -12,7 +14,9 @@ import { requireUser } from "@/lib/supabase/server";
 export default async function SettingsPage({ searchParams }: { searchParams: Promise<{ saved?: string }> }) {
   const { saved } = await searchParams;
   const { supabase, user } = await requireUser();
-  const profile = await getProfile(supabase, user.id);
+  const [profile, cookieStore] = await Promise.all([getProfile(supabase, user.id), cookies()]);
+  const savedTheme = cookieStore.get("theme")?.value;
+  const theme = savedTheme === "light" || savedTheme === "dark" ? savedTheme : "system";
 
   return (
     <>
@@ -47,6 +51,11 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
           <button className="mt-5 w-full rounded-2xl bg-violet py-3.5 font-bold text-white">Save</button>
         </Card>
       </form>
+
+      <Card className="mt-4">
+        <SectionTitle>Appearance</SectionTitle>
+        <ThemePicker initial={theme} />
+      </Card>
 
       <Link href="/settings/categories" className="mt-4 flex items-center gap-4 rounded-3xl bg-card p-5 shadow-sm ring-1 ring-line">
         <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-violet-soft text-violet">

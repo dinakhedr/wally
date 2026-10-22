@@ -55,10 +55,12 @@ Add. Settings opens from the profile picture in every page header.
   optional **Goals** (e.g. “Emergency fund 40k / 60k”); year-ahead projection.
 
 ### Plans ✅
-- **Bills**: this month in full (to pay first, then paid, with undo), the next
-  11 months collapsed to a total each; mark paid / skip, add, edit, pause, delete.
-- **Installments**: every active installment with progress, plus a **Coming
-  months** view showing when each one ends and how much money it frees up.
+- **Bills**: this month in full (to pay first, then paid, with undo); a month
+  list (total + count per month, tap to open that month's bills) with past
+  months behind a "Show past months" toggle. **Pay** appears only once a bill's
+  date has come. Add, edit, pause, delete.
+- **Installments**: every active installment with progress and Pay (only once
+  due); a month list like Bills, noting which plans end and what they free up.
 
 ### Settings
 - Currency and monthly budget ✅
@@ -78,6 +80,15 @@ Add. Settings opens from the profile picture in every page header.
 **Total spending = expenses + bill payments + installment payments** for the
 period. They stay separate in the data; Home's “Left to spend” and Activity's
 “Spent” add them up (with a breakdown), and Insights will do the same.
+
+### Appearance
+Settings → Appearance: System (default), Light or Dark. Saved per device in a
+`theme` cookie and applied server-side (`<html data-theme>`), so there's no
+flash; the status-bar colour follows it.
+
+### Speed
+Session checks use `getClaims()` (local JWT verification) instead of a Supabase
+Auth round trip, and every tab shows an instant loading skeleton.
 
 ### Money format
 Amounts always show the currency code: `EGP 1,250`.

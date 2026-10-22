@@ -34,8 +34,41 @@
   --cat-other: #a8a3b8;
 }
 
+/* Dark theme: chosen in Settings (data-theme="dark"), or by the system when
+   the user picked "System" (no data-theme, or data-theme="system"). */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #12101b;
+  --card: #1c1928;
+  --card-2: #262236;
+  --ink: #f3f0fb;
+  --muted: #a39cba;
+  --line: #2e2a40;
+
+  --violet: #9d84ff;
+  --violet-soft: #2c2452;
+  --coral: #ff8a7f;
+  --coral-soft: #3d2226;
+  --mint: #3fd6a3;
+  --mint-soft: #173a30;
+  --sun: #ffc25c;
+  --sun-soft: #3a2e17;
+  --sky: #66b8ff;
+  --sky-soft: #172f45;
+
+  --cat-1: #3987e5;
+  --cat-2: #d95926;
+  --cat-3: #199e70;
+  --cat-4: #c98500;
+  --cat-5: #d55181;
+  --cat-6: #9085e9;
+  --cat-other: #5f5a73;
+  
+}
+
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]):not([data-theme="dark"]) {
+    color-scheme: dark;
     --bg: #12101b;
     --card: #1c1928;
     --card-2: #262236;
@@ -61,6 +94,7 @@
     --cat-5: #d55181;
     --cat-6: #9085e9;
     --cat-other: #5f5a73;
+  
   }
 }
 
@@ -86,8 +120,11 @@
   --font-sans: var(--font-jakarta), ui-sans-serif, system-ui, sans-serif;
 }
 
+:root {
+  color-scheme: light;
+}
+
 html {
-  color-scheme: light dark;
   -webkit-tap-highlight-color: transparent;
 }
 

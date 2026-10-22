@@ -51,8 +51,7 @@ export default async function ActivityPage({ searchParams }: { searchParams: Pro
   const { currency } = profile;
   // Month totals ignore the search/filter; spending includes bills and installments paid.
   const { spent: expensesSpent, earned } = totals(monthTotals);
-  const planPaid = paid.bills + paid.installments;
-  const spent = expensesSpent + planPaid;
+  const spent = expensesSpent + paid.bills + paid.installments;
 
   const days = new Map<string, Entry[]>();
   for (const e of entries) days.set(e.date, [...(days.get(e.date) ?? []), e]);
@@ -79,7 +78,18 @@ export default async function ActivityPage({ searchParams }: { searchParams: Pro
         <div className="rounded-2xl bg-coral-soft p-4">
           <p className="text-xs font-bold uppercase tracking-wide text-coral">Spent</p>
           <p className="mt-1 text-xl font-extrabold tabular-nums">{formatMoney(spent, currency)}</p>
-          {planPaid > 0 && <p className="text-xs text-muted">incl. {formatMoney(planPaid, currency)} bills & installments</p>}
+          <dl className="mt-2 space-y-0.5 text-xs text-muted">
+            {[
+              ["Expenses", expensesSpent],
+              ["Bills", paid.bills],
+              ["Installments", paid.installments],
+            ].map(([label, value]) => (
+              <div key={label as string} className="flex justify-between gap-2">
+                <dt>{label}</dt>
+                <dd className="font-semibold tabular-nums text-ink">{formatMoney(Math.round(value as number), currency)}</dd>
+              </div>
+            ))}
+          </dl>
         </div>
         <div className="rounded-2xl bg-mint-soft p-4">
           <p className="text-xs font-bold uppercase tracking-wide text-mint">Earned</p>

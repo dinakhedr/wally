@@ -1,16 +1,17 @@
 import Link from "next/link";
 import { Check, ChevronRight, Plus, Undo2 } from "lucide-react";
 import { payInstallment, undoInstallmentPayment } from "@/app/plans-actions";
-import { Card, SectionTitle } from "@/components/Card";
+import { Card } from "@/components/Card";
+import { MonthList } from "@/components/plans/MonthList";
 import { formatMoney, parseISODate } from "@/lib/format";
-import { installmentStatus, lastDayOfMonth, monthLabel, monthOf, monthsAhead, type InstallmentRow, type InstallmentStatus } from "@/lib/plans";
+import { installmentStatus, monthLabel, monthOf, type InstallmentRow, type InstallmentStatus } from "@/lib/plans";
+import { installmentSchedule } from "@/lib/schedule";
 
 const monthYear = (iso: string) => parseISODate(iso).toLocaleDateString("en", { month: "short", year: "numeric" });
 const shortDate = (iso: string) => parseISODate(iso).toLocaleDateString("en", { day: "numeric", month: "short" });
 
 export function InstallmentsView({ rows, today, currency }: { rows: InstallmentRow[]; today: string; currency: string }) {
   const thisMonth = monthOf(today);
-  const endOfThisMonth = lastDayOfMonth(thisMonth);
   const all = rows.map(installmentStatus);
   const active = all.filter((i) => !i.done).sort((a, b) => a.lastDue.localeCompare(b.lastDue));
   const finished = all.filter((i) => i.done);
@@ -18,21 +19,29 @@ export function InstallmentsView({ rows, today, currency }: { rows: InstallmentR
   const monthly = active.reduce((n, i) => n + i.monthly_amount, 0);
   const remaining = active.reduce((n, i) => n + i.remainingAmount, 0);
 
-  // Coming months: what's due each month, and which plans end then.
-  const months = monthsAhead(today, 12);
-  const coming = months.map((m) => {
-    const due = active.filter((i) => i.unpaid.some((u) => (monthOf(u.due) < thisMonth ? thisMonth : monthOf(u.due)) === m));
-    const amount = active.reduce(
-      (n, i) => n + i.unpaid.filter((u) => (monthOf(u.due) < thisMonth ? thisMonth : monthOf(u.due)) === m).length * i.monthly_amount,
-      0,
-    );
-    const ending = active.filter((i) => monthOf(i.lastDue) === m);
-    return { month: m, amount, count: due.length, ending };
-  });
-  // Stop after the last month with anything due.
-  const lastBusy = coming.map((c) => c.amount > 0).lastIndexOf(true);
-  const comingShown = coming.slice(0, lastBusy + 1);
-  const peak = Math.max(1, ...coming.map((c) => c.amount));
+  // Months: what's due (or was paid) each month, and which plans end then.
+  const { byMonth, past, future } = installmentSchedule(rows, today);
+  const year = (m: string) => m.slice(0, 4) !== thisMonth.slice(0, 4);
+  const monthRows = [...future, ...past]
+    .filter((m) => byMonth.get(m)?.length)
+    .map((m) => {
+      const lines = byMonth.get(m)!;
+      const ending = all.filter((i) => monthOf(i.lastDue) === m);
+      return {
+        month: m,
+        label: monthLabel(m, { year: year(m) }),
+        total: formatMoney(lines.reduce((n, l) => n + l.amount, 0), currency),
+        count: `${lines.length} payment${lines.length === 1 ? "" : "s"}`,
+        href: `/plans/month/${m}?type=installments`,
+        past: m < thisMonth,
+        note: ending.length ? (
+          <span className="mt-0.5 block text-xs text-muted">
+            🎉 {ending.map((e) => e.name).join(", ")} {ending.length === 1 ? "ends" : "end"}, freeing up{" "}
+            <b className="text-ink">{formatMoney(ending.reduce((n, e) => n + e.monthly_amount, 0), currency)}</b> a month
+          </span>
+        ) : undefined,
+      };
+    });
 
   return (
     <div className="space-y-4">
@@ -61,33 +70,10 @@ export function InstallmentsView({ rows, today, currency }: { rows: InstallmentR
       {!all.length && <p className="py-8 text-center text-muted">No installments yet. Add a phone, car or loan you pay monthly.</p>}
 
       {active.map((i) => (
-        <PlanCard key={i.id} plan={i} currency={currency} payable={!!i.nextDue && i.nextDue <= endOfThisMonth} today={today} />
+        <PlanCard key={i.id} plan={i} currency={currency} payable={!!i.nextDue && i.nextDue <= today} today={today} />
       ))}
 
-      {comingShown.length > 0 && (
-        <Card>
-          <SectionTitle>Coming months</SectionTitle>
-          <ul className="space-y-3">
-            {comingShown.map((c) => (
-              <li key={c.month}>
-                <div className="flex items-baseline justify-between gap-3 text-sm">
-                  <span className="font-semibold">{monthLabel(c.month, { year: c.month.slice(0, 4) !== thisMonth.slice(0, 4) })}</span>
-                  <span className="font-bold tabular-nums">{formatMoney(c.amount, currency)}</span>
-                </div>
-                <div className="mt-1 h-2 overflow-hidden rounded-full bg-card-2" aria-hidden>
-                  <div className="h-full rounded-full bg-sky" style={{ width: `${(c.amount / peak) * 100}%` }} />
-                </div>
-                {c.ending.map((e) => (
-                  <p key={e.id} className="mt-1 text-xs text-muted">
-                    🎉 <span className="font-semibold text-ink">{e.name}</span> ends, freeing up{" "}
-                    <span className="font-semibold text-ink">{formatMoney(e.monthly_amount, currency)}</span> a month
-                  </p>
-                ))}
-              </li>
-            ))}
-          </ul>
-        </Card>
-      )}
+      {monthRows.length > 0 && <MonthList title="Months" rows={monthRows} />}
 
       {finished.length > 0 && (
         <details className="rounded-3xl bg-card p-4 ring-1 ring-line">
