@@ -42,6 +42,8 @@ export async function deleteEntry(form: FormData) {
   const table = form.get("kind") === "income" ? "income" : "expenses";
   if (id) await supabase.from(table).delete().eq("id", id);
   revalidatePath("/", "layout");
+  const back = String(form.get("back") ?? "");
+  if (back.startsWith("/")) redirect(back);
 }
 
 export async function updateSettings(form: FormData) {
@@ -133,4 +135,29 @@ export async function deleteMyAccount(_prev: DangerResult, form: FormData): Prom
   }
   await supabase.auth.signOut();
   redirect("/login?deleted=1");
+}
+
+export async function updateEntry(_prev: AddState, form: FormData): Promise<AddState> {
+  const { supabase } = await requireUser();
+  const id = String(form.get("id") ?? "");
+  const kind = form.get("kind") === "income" ? "income" : "expense";
+  const amount = Number(String(form.get("amount") ?? "").replace(/,/g, ""));
+  const categoryId = String(form.get("category_id") ?? "") || null;
+  const date = String(form.get("date") ?? "");
+  const note = String(form.get("note") ?? "").trim().slice(0, 200) || null;
+
+  if (!id) return { error: "Missing entry." };
+  if (!Number.isFinite(amount) || amount <= 0) return { error: "Enter an amount above zero." };
+  if (amount >= 1e10) return { error: "That amount is too large." };
+  if (!ISO_DATE.test(date)) return { error: "Pick a date." };
+
+  const row = { amount: Math.round(amount * 100) / 100, category_id: categoryId, note };
+  const { error } =
+    kind === "expense"
+      ? await supabase.from("expenses").update({ ...row, spent_on: date }).eq("id", id)
+      : await supabase.from("income").update({ ...row, received_on: date }).eq("id", id);
+  if (error) return { error: "Couldn’t save. Please try again." };
+
+  revalidatePath("/", "layout");
+  redirect("/activity");
 }

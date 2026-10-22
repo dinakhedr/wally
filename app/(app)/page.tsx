@@ -153,7 +153,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
         {todays.length ? (
           <ul className="divide-y divide-line">
             {todays.map((e) => (
-              <EntryRow key={`${e.kind}-${e.id}`} entry={e} currency={currency} />
+              <EntryRow key={`${e.kind}-${e.id}`} entry={e} currency={currency} editable />
             ))}
           </ul>
         ) : (

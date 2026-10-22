@@ -44,9 +44,9 @@ Add. Settings opens from the profile picture in every page header.
 ### Activity ✅
 - One list for expenses and income, grouped by day with day totals.
 - Month switcher with Spent / Earned totals, search, and All / Expenses /
-  Income filters. Delete with confirmation.
+  Income filters. Tap an entry to edit it; delete with confirmation.
 
-### Insights (next)
+### Insights ✅
 - **Overview**: income, spending, savings vs. last month; 6-month trend;
   spending breakdown; daily pace; tips.
 - **Spending**: donut by category; categories vs. last month; budgets;
@@ -54,8 +54,9 @@ Add. Settings opens from the profile picture in every page header.
 - **Savings**: automatic (income − spending); savings rate; monthly chart;
   optional **Goals** (e.g. “Emergency fund 40k / 60k”); year-ahead projection.
 
-### Plans (next)
-- **Bills**: recurring payments laid out month by month for the next 12 months.
+### Plans ✅
+- **Bills**: this month in full (to pay first, then paid, with undo), the next
+  11 months collapsed to a total each; mark paid / skip, add, edit, pause, delete.
 - **Installments**: every active installment with progress, plus a **Coming
   months** view showing when each one ends and how much money it frees up.
 
@@ -70,12 +71,22 @@ Add. Settings opens from the profile picture in every page header.
     suggestion, e.g. Cafe → Cafe & Restaurants, Supermarket → Groceries) or
     "Add as new". Existing Wally categories are never modified.
   - Re-importing never duplicates rows.
-- Categories (add / edit / archive, per-category budgets), preferences — next.
+- Categories & budgets ✅ — add, edit (emoji, colour, budget), hide, delete
+- Danger zone ✅ — delete all data, delete account (type DELETE to confirm)
 
 ### Totals
 **Total spending = expenses + bill payments + installment payments** for the
 period. They stay separate in the data; Home's “Left to spend” and Activity's
 “Spent” add them up (with a breakdown), and Insights will do the same.
+
+### Money format
+Amounts always show the currency code: `EGP 1,250`.
+
+### Charts
+Plain SVG, no chart library. Spend `#e8604f` / income `#14a37a` and the six
+category colours (`--cat-1…6`, “Other” grey) were checked with the dataviz
+palette validator for colour-blind separation and contrast in light and dark.
+Every chart has a legend or direct labels and tap/hover values.
 
 ## Data
 
@@ -98,8 +109,8 @@ trigger creates the profile and the starter categories
 ## Roadmap
 
 1. ✅ Scaffold, schema, Google sign-in, Home / Add / Activity
-2. Plans: bills and installments (add / edit, mark a month paid)
-3. Insights: Overview, Spending, Savings + Goals
-4. Settings: categories and budgets
+2. ✅ Plans: bills and installments
+3. ✅ Insights: Overview, Spending, Savings + Goals
+4. ✅ Settings: categories and budgets, delete data / account
 5. ✅ Import from the Google Sheet
 6. ✅ Installable: manifest and home-screen icons (offline shell — later)

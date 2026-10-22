@@ -132,6 +132,7 @@ export default async function ActivityPage({ searchParams }: { searchParams: Pro
                     key={`${e.kind}-${e.id}`}
                     entry={e}
                     currency={currency}
+                    editable
                     action={<DeleteButton id={e.id} kind={e.kind} />}
                   />
                 ))}

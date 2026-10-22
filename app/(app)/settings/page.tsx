@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ChevronRight, FileSpreadsheet, LogOut } from "lucide-react";
+import { ChevronRight, FileSpreadsheet, LogOut, Tags } from "lucide-react";
 import { signOut, updateSettings } from "@/app/actions";
 import { Card, SectionTitle } from "@/components/Card";
 import { DangerZone } from "@/components/DangerZone";
@@ -47,6 +47,17 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
           <button className="mt-5 w-full rounded-2xl bg-violet py-3.5 font-bold text-white">Save</button>
         </Card>
       </form>
+
+      <Link href="/settings/categories" className="mt-4 flex items-center gap-4 rounded-3xl bg-card p-5 shadow-sm ring-1 ring-line">
+        <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-violet-soft text-violet">
+          <Tags size={22} />
+        </span>
+        <span className="flex-1">
+          <span className="block font-bold">Categories & budgets</span>
+          <span className="block text-sm text-muted">Add, edit, hide and set budgets</span>
+        </span>
+        <ChevronRight size={20} className="text-muted" />
+      </Link>
 
       <Link href="/settings/import" className="mt-4 flex items-center gap-4 rounded-3xl bg-card p-5 shadow-sm ring-1 ring-line">
         <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-mint-soft text-mint">

@@ -1,4 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import type { BillPayment, InstallmentPayment } from "./insights";
+import type { InstallmentRow } from "./plans";
 import type { Category, Entry, Kind, Profile, Recurring } from "./types";
 
 type Row = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
@@ -118,4 +120,72 @@ export async function getPlanPayments(supabase: SupabaseClient, from: string, to
   ]);
   const sum = (rows: { amount: number | string }[] | null) => (rows ?? []).reduce((n, r) => n + Number(r.amount), 0);
   return { bills: sum(bills.data), installments: sum(installments.data) };
+}
+
+export type Bill = {
+  id: string;
+  name: string;
+  amount: number;
+  frequency: "weekly" | "monthly" | "quarterly" | "yearly";
+  next_due: string;
+  end_date: string | null;
+  active: boolean;
+  category_id: string | null;
+  category: Pick<Category, "name" | "emoji" | "color"> | null;
+  payments: { id: string; due_on: string; amount: number; status: "paid" | "skipped" }[];
+};
+
+export async function getBills(supabase: SupabaseClient): Promise<Bill[]> {
+  const { data } = await supabase
+    .from("recurring")
+    .select(
+      "id, name, amount, frequency, next_due, end_date, active, category_id, category:categories(name, emoji, color), payments:recurring_payments(id, due_on, amount, status)",
+    )
+    .order("next_due");
+  return (data ?? []).map((b: Row) => ({
+    ...b,
+    amount: Number(b.amount),
+    payments: (b.payments ?? []).map((p: Row) => ({ ...p, amount: Number(p.amount) })),
+  })) as Bill[];
+}
+
+export async function getInstallments(supabase: SupabaseClient): Promise<InstallmentRow[]> {
+  const { data } = await supabase
+    .from("installments")
+    .select("id, name, note, total_amount, monthly_amount, months_total, first_due, payments:installment_payments(seq, due_on, amount)")
+    .order("first_due");
+  return (data ?? []).map((i: Row) => ({
+    ...i,
+    total_amount: Number(i.total_amount),
+    monthly_amount: Number(i.monthly_amount),
+    payments: (i.payments ?? []).map((p: Row) => ({ ...p, amount: Number(p.amount) })),
+  })) as InstallmentRow[];
+}
+
+/** Paid bill payments in a date range, with the bill's name and category. */
+export async function getBillPayments(supabase: SupabaseClient, from: string, to: string): Promise<BillPayment[]> {
+  const { data } = await supabase
+    .from("recurring_payments")
+    .select("amount, due_on, bill:recurring(name, category:categories(name, emoji, color))")
+    .eq("status", "paid")
+    .gte("due_on", from)
+    .lte("due_on", to);
+  return (data ?? []).map((p: Row) => ({
+    amount: Number(p.amount),
+    due_on: p.due_on,
+    name: p.bill?.name ?? "Bill",
+    category: p.bill?.category ?? null,
+  }));
+}
+
+export async function getInstallmentPayments(supabase: SupabaseClient, from: string, to: string): Promise<InstallmentPayment[]> {
+  const { data } = await supabase.from("installment_payments").select("amount, due_on").gte("due_on", from).lte("due_on", to);
+  return (data ?? []).map((p: Row) => ({ amount: Number(p.amount), due_on: p.due_on }));
+}
+
+export type Goal = { id: string; name: string; emoji: string; target: number; saved: number; target_date: string | null };
+
+export async function getGoals(supabase: SupabaseClient): Promise<Goal[]> {
+  const { data } = await supabase.from("goals").select("id, name, emoji, target, saved, target_date").order("created_at");
+  return (data ?? []).map((g: Row) => ({ ...g, target: Number(g.target), saved: Number(g.saved) })) as Goal[];
 }
