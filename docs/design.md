@@ -88,7 +88,9 @@ flash; the status-bar colour follows it.
 
 ### Speed
 Session checks use `getClaims()` (local JWT verification) instead of a Supabase
-Auth round trip, and every tab shows an instant loading skeleton.
+Auth round trip, and every tab shows an instant loading skeleton. Server code
+runs in Vercel's London region (`vercel.json` → `lhr1`), next to the Supabase
+database (eu-west-2, London).
 
 ### Money format
 Amounts always show the currency code: `EGP 1,250`.
