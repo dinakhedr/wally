@@ -1,0 +1,407 @@
+/**
+ * Turns the old "Expenses Tracker" Google Sheet (downloaded as .xlsx) into the
+ * payload that the `import_sheet` database function expects.
+ *
+ * Tabs: Daily Log, Categories, Recurring, Recurring Log, Installments,
+ * Installments Log, Income Log. Columns are found by header name, so order
+ * doesn't matter, and every value may arrive as text, number, boolean or Date.
+ */
+import type { Kind, Tint } from "./types";
+
+type Cell = string | number | boolean | Date | null | undefined;
+export type SheetInput = { sheet: string; data: Cell[][] }[];
+type Row = Record<string, Cell>;
+
+export type ImportCategory = {
+  kind: Kind;
+  name: string;
+  emoji: string;
+  color: Tint;
+  budget: number | null;
+  archived: boolean;
+  sort: number;
+};
+type Entry = { key: string; date: string; category: string | null; amount: number; note: string | null; created_at: string | null };
+type Payment = Entry & { parent_key: string };
+
+export type ImportPayload = {
+  categories: ImportCategory[];
+  expenses: Entry[];
+  income: Entry[];
+  recurring: {
+    key: string;
+    name: string;
+    category: string | null;
+    amount: number;
+    frequency: "weekly" | "monthly" | "quarterly" | "yearly";
+    next_due: string;
+    active: boolean;
+  }[];
+  recurring_payments: Payment[];
+  installments: {
+    key: string;
+    name: string;
+    category: string;
+    total: number;
+    monthly: number;
+    months: number;
+    first_due: string;
+    note: string | null;
+  }[];
+  installment_payments: (Payment & { seq: number })[];
+};
+
+export type ImportSummary = {
+  categories: number;
+  expenses: number;
+  income: number;
+  recurring: number;
+  recurringPayments: number;
+  installments: number;
+  installmentPayments: number;
+  firstDate: string | null;
+  lastDate: string | null;
+  skipped: number;
+};
+
+const INSTALLMENTS_CATEGORY = "Installments";
+const BANKS: Record<string, string> = { NBE: "National Bank of Egypt", CIB: "CIB", BM: "Banque Misr", QNB: "QNB" };
+
+// ─── Cell helpers ────────────────────────────────────────────────────────────
+
+const pad = (n: number) => String(n).padStart(2, "0");
+const ymd = (y: number, m: number, d: number) => `${y}-${pad(m)}-${pad(d)}`;
+
+function text(v: Cell): string {
+  if (v == null) return "";
+  if (v instanceof Date) return v.toISOString();
+  return String(v).trim();
+}
+
+function num(v: Cell): number | null {
+  if (typeof v === "number") return Number.isFinite(v) ? v : null;
+  const s = text(v).replace(/[,\s]/g, "").replace(/[^\d.-]/g, "");
+  if (!s) return null;
+  const n = Number(s);
+  return Number.isFinite(n) ? n : null;
+}
+
+function bool(v: Cell, fallback: boolean): boolean {
+  if (typeof v === "boolean") return v;
+  const s = text(v).toLowerCase();
+  if (["true", "yes", "1"].includes(s)) return true;
+  if (["false", "no", "0"].includes(s)) return false;
+  return fallback;
+}
+
+/** A calendar date as YYYY-MM-DD, or null. Excel dates arrive as UTC midnight. */
+export function toDate(v: Cell): string | null {
+  if (v instanceof Date) return Number.isNaN(v.getTime()) ? null : ymd(v.getUTCFullYear(), v.getUTCMonth() + 1, v.getUTCDate());
+  if (typeof v === "number" && v > 20000 && v < 80000) {
+    // Excel serial day number
+    const d = new Date(Math.round((v - 25569) * 86_400_000));
+    return ymd(d.getUTCFullYear(), d.getUTCMonth() + 1, d.getUTCDate());
+  }
+  const s = text(v);
+  let m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+  if (m) return validDate(+m[1], +m[2], +m[3]);
+  m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/); // Google Sheets' default M/D/YYYY
+  if (m) return validDate(+m[3], +m[1], +m[2]);
+  return null;
+}
+
+function validDate(y: number, m: number, d: number) {
+  const date = new Date(Date.UTC(y, m - 1, d));
+  return date.getUTCMonth() === m - 1 && date.getUTCDate() === d ? ymd(y, m, d) : null;
+}
+
+function toTimestamp(v: Cell): string | null {
+  if (v instanceof Date) return Number.isNaN(v.getTime()) ? null : v.toISOString();
+  const s = text(v);
+  if (!s) return null;
+  const t = Date.parse(s);
+  return Number.isNaN(t) ? null : new Date(t).toISOString();
+}
+
+const money = (n: number) => Math.round(n * 100) / 100;
+
+function addMonths(iso: string, months: number, day: number) {
+  const [y, m] = iso.split("-").map(Number);
+  const total = y * 12 + (m - 1) + months;
+  const ny = Math.floor(total / 12);
+  const nm = (total % 12) + 1;
+  const last = new Date(Date.UTC(ny, nm, 0)).getUTCDate();
+  return ymd(ny, nm, Math.min(day, last));
+}
+
+function monthsBetween(a: string, b: string) {
+  const [ay, am] = a.split("-").map(Number);
+  const [by, bm] = b.split("-").map(Number);
+  return (by - ay) * 12 + (bm - am);
+}
+
+/** Nearest Wally tint for one of the sheet's pastel hex colours. */
+export function tintFor(hex: string, fallback: Tint): Tint {
+  const m = hex.trim().match(/^#?([0-9a-f]{6})$/i);
+  if (!m) return fallback;
+  const [r, g, b] = [0, 2, 4].map((i) => parseInt(m[1].slice(i, i + 2), 16) / 255);
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  if (max - min < 0.06) return fallback; // grey
+  let h: number;
+  if (max === r) h = ((g - b) / (max - min)) % 6;
+  else if (max === g) h = (b - r) / (max - min) + 2;
+  else h = (r - g) / (max - min) + 4;
+  h = (h * 60 + 360) % 360;
+  if (h < 20 || h >= 320) return "coral";
+  if (h < 70) return "sun";
+  if (h < 170) return "mint";
+  if (h < 225) return "sky";
+  return "violet";
+}
+
+// ─── Sheet → rows ────────────────────────────────────────────────────────────
+
+function findSheet(sheets: SheetInput, name: string) {
+  const want = name.toLowerCase().replace(/\s+/g, "");
+  return sheets.find((s) => s.sheet.toLowerCase().replace(/\s+/g, "") === want);
+}
+
+function rows(sheets: SheetInput, name: string): Row[] {
+  const sheet = findSheet(sheets, name);
+  if (!sheet || sheet.data.length < 2) return [];
+  const headers = sheet.data[0].map((h) => text(h).toLowerCase().replace(/\s+/g, ""));
+  return sheet.data.slice(1).map((cells) => {
+    const row: Row = {};
+    headers.forEach((h, i) => h && (row[h] = cells[i]));
+    return row;
+  });
+}
+
+const get = (row: Row, ...names: string[]) => {
+  for (const n of names) {
+    const v = row[n.toLowerCase()];
+    if (v != null && text(v) !== "") return v;
+  }
+  return null;
+};
+
+// ─── Main ────────────────────────────────────────────────────────────────────
+
+export function looksLikeTracker(sheets: SheetInput) {
+  return Boolean(findSheet(sheets, "Daily Log") || findSheet(sheets, "Income Log"));
+}
+
+export function buildImport(sheets: SheetInput, today: string): { payload: ImportPayload; summary: ImportSummary } {
+  let skipped = 0;
+
+  // Categories tab: entries reference OriginalValue; Name is the display name.
+  const sheetCats = rows(sheets, "Categories")
+    .map((r, i) => {
+      const name = text(get(r, "Name", "OriginalValue"));
+      return {
+        original: text(get(r, "OriginalValue")) || name,
+        name,
+        kind: (text(get(r, "Kind")).toLowerCase() === "income" ? "income" : "expense") as Kind,
+        emoji: text(get(r, "Icon")),
+        bg: text(get(r, "BG")),
+        budget: num(get(r, "Budget")),
+        hidden: bool(get(r, "Hidden"), false),
+        sort: i + 1,
+      };
+    })
+    .filter((c) => c.name);
+
+  const alias = new Map<string, string>();
+  for (const c of sheetCats) {
+    alias.set(c.original.toLowerCase(), c.name);
+    alias.set(c.name.toLowerCase(), c.name);
+  }
+  const resolve = (v: Cell) => {
+    const s = text(v);
+    return s ? (alias.get(s.toLowerCase()) ?? s) : null;
+  };
+
+  // Track which (kind, name) pairs the data actually uses.
+  const used = { expense: new Set<string>(), income: new Set<string>() };
+  const use = (kind: Kind, name: string | null) => name && used[kind].add(name);
+
+  const entry = (r: Row, key: string, dateCols: string[], kind: Kind, note?: string | null): Entry | null => {
+    const date = toDate(get(r, ...dateCols));
+    const amount = num(get(r, "Amount", "AmountPaid"));
+    if (!date || amount == null || amount <= 0) {
+      if (Object.values(r).some((v) => text(v) !== "")) skipped++;
+      return null;
+    }
+    const category = resolve(get(r, "Category"));
+    use(kind, category);
+    return {
+      key,
+      date,
+      category,
+      amount: money(amount),
+      note: (note !== undefined ? note : text(get(r, "Notes"))) || null,
+      created_at: toTimestamp(get(r, "Timestamp")),
+    };
+  };
+
+  const expenses = rows(sheets, "Daily Log")
+    .map((r, i) => entry(r, `daily:${text(get(r, "ID")) || `row${i + 2}`}:${text(get(r, "Timestamp"))}`, ["Date"], "expense"))
+    .filter((e): e is Entry => e !== null);
+
+  const income = rows(sheets, "Income Log")
+    .map((r, i) => entry(r, `income:${text(get(r, "ID")) || `row${i + 2}`}:${text(get(r, "Timestamp"))}`, ["Date"], "income"))
+    .filter((e): e is Entry => e !== null);
+
+  // Recurring bills
+  const FREQ: Record<string, ImportPayload["recurring"][number]["frequency"]> = {
+    weekly: "weekly",
+    monthly: "monthly",
+    quarterly: "quarterly",
+    annual: "yearly",
+    annually: "yearly",
+    yearly: "yearly",
+  };
+  const STEP = { weekly: 0, monthly: 1, quarterly: 3, yearly: 12 } as const;
+
+  const recurring = rows(sheets, "Recurring").flatMap((r) => {
+    const id = text(get(r, "ID"));
+    const name = text(get(r, "Name"));
+    const amount = num(get(r, "Amount"));
+    if (!id || !name || amount == null || amount <= 0) {
+      if (id || name) skipped++;
+      return [];
+    }
+    const frequency = FREQ[text(get(r, "Frequency")).toLowerCase()] ?? "monthly";
+    const year = num(get(r, "StartYear")) ?? Number(today.slice(0, 4));
+    const month = num(get(r, "StartMonth")) ?? 1;
+    const day = num(get(r, "PaymentDay")) ?? 1;
+    const start = validDate(year, month, 1) ?? today.slice(0, 8) + "01";
+
+    let next = addMonths(start, 0, day);
+    for (let k = 1; next < today && STEP[frequency] > 0 && k < 1200; k++) next = addMonths(start, k * STEP[frequency], day);
+
+    const category = resolve(get(r, "Category"));
+    use("expense", category);
+    return [{ key: `rec:${id}`, name, category, amount: money(amount), frequency, next_due: next, active: bool(get(r, "Active"), true) }];
+  });
+
+  const recurring_payments = rows(sheets, "Recurring Log")
+    .map((r, i) => {
+      const parent = text(get(r, "RecurringID"));
+      const e = entry(
+        r,
+        `recpay:${parent || `row${i + 2}`}:${text(get(r, "Date"))}:${text(get(r, "Timestamp"))}`,
+        ["Date"],
+        "expense",
+        text(get(r, "Name")) || text(get(r, "Notes")).replace(/^Recurring:\s*/i, "") || null,
+      );
+      return e && { ...e, parent_key: `rec:${parent}` };
+    })
+    .filter((e): e is Payment => e !== null);
+
+  // Installments
+  const installments = rows(sheets, "Installments").flatMap((r) => {
+    const id = text(get(r, "ID"));
+    const name = text(get(r, "ItemName", "Name"));
+    const total = num(get(r, "TotalAmount"));
+    const months = num(get(r, "MonthsCount"));
+    const year = num(get(r, "StartYear"));
+    const month = num(get(r, "StartMonth"));
+    const first = year && month ? validDate(year, month, 1) : null;
+    if (!id || !name || !total || !months || months < 1 || !first) {
+      if (id || name) skipped++;
+      return [];
+    }
+    const bank = text(get(r, "BankKey"));
+    use("expense", INSTALLMENTS_CATEGORY);
+    return [
+      {
+        key: `inst:${id}`,
+        name,
+        category: INSTALLMENTS_CATEGORY,
+        total: money(total),
+        monthly: money(num(get(r, "MonthlyAmount")) ?? total / months),
+        months: Math.round(months),
+        first_due: first,
+        note: bank ? (BANKS[bank.toUpperCase()] ?? bank) : null,
+      },
+    ];
+  });
+  const installmentById = new Map(installments.map((i) => [i.key, i]));
+
+  const installment_payments = rows(sheets, "Installments Log")
+    .map((r, i) => {
+      const parent = text(get(r, "InstallmentID"));
+      const plan = installmentById.get(`inst:${parent}`);
+      const date = toDate(get(r, "DatePaid", "Date"));
+      const seq = plan && date ? Math.max(1, monthsBetween(plan.first_due, date) + 1) : 1;
+      const e = entry(
+        { ...r, category: INSTALLMENTS_CATEGORY },
+        `instpay:${parent || `row${i + 2}`}:${text(get(r, "DatePaid", "Date"))}:${text(get(r, "Timestamp"))}`,
+        ["DatePaid", "Date"],
+        "expense",
+        plan ? `${plan.name} · ${seq}/${plan.months}${plan.note ? ` · ${plan.note}` : ""}` : text(get(r, "Notes")) || null,
+      );
+      return e && { ...e, parent_key: `inst:${parent}`, seq };
+    })
+    .filter((e): e is Payment & { seq: number } => e !== null);
+
+  // Categories: every one the sheet lists, under the kind(s) it's really used as,
+  // plus any the data mentions that the Categories tab doesn't.
+  const categories: ImportCategory[] = [];
+  const seen = new Set<string>();
+  const push = (c: ImportCategory) => {
+    const k = `${c.kind}:${c.name.toLowerCase()}`;
+    if (seen.has(k)) return;
+    seen.add(k);
+    categories.push(c);
+  };
+
+  for (const c of sheetCats) {
+    const kinds = (["expense", "income"] as const).filter((k) => used[k].has(c.name));
+    for (const kind of kinds.length ? kinds : [c.kind]) {
+      push({
+        kind,
+        name: c.name,
+        emoji: c.emoji || (kind === "income" ? "💰" : "📦"),
+        color: tintFor(c.bg, kind === "income" ? "mint" : "violet"),
+        budget: kind === "expense" && c.budget && c.budget > 0 ? money(c.budget) : null,
+        archived: c.hidden,
+        sort: c.sort,
+      });
+    }
+  }
+  let extra = sheetCats.length;
+  for (const kind of ["expense", "income"] as const) {
+    for (const name of used[kind]) {
+      push({
+        kind,
+        name,
+        emoji: kind === "income" ? "💰" : name === INSTALLMENTS_CATEGORY ? "🔄" : "🔁",
+        color: kind === "income" ? "mint" : "sky",
+        budget: null,
+        archived: false,
+        sort: ++extra,
+      });
+    }
+  }
+
+  const dates = [...expenses, ...income, ...recurring_payments, ...installment_payments].map((e) => e.date).sort();
+
+  return {
+    payload: { categories, expenses, income, recurring, recurring_payments, installments, installment_payments },
+    summary: {
+      categories: categories.length,
+      expenses: expenses.length,
+      income: income.length,
+      recurring: recurring.length,
+      recurringPayments: recurring_payments.length,
+      installments: installments.length,
+      installmentPayments: installment_payments.length,
+      firstDate: dates[0] ?? null,
+      lastDate: dates.at(-1) ?? null,
+      skipped,
+    },
+  };
+}

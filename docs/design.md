@@ -61,8 +61,10 @@ Add. Settings opens from the profile picture in every page header.
 
 ### Settings
 - Currency and monthly budget ✅
-- Categories (add / edit / archive, per-category budgets), import from the old
-  Google Sheet, preferences — next.
+- Import from the old Google Sheet ✅ — upload the sheet as .xlsx; every tab is
+  imported (bill and installment payments become linked expenses). Re-importing
+  never duplicates rows (`import_key`).
+- Categories (add / edit / archive, per-category budgets), preferences — next.
 
 ## Data
 
@@ -78,5 +80,5 @@ trigger creates the profile and 19 starter categories.
 2. Plans: bills and installments (CRUD, mark paid → creates the expense)
 3. Insights: Overview, Spending, Savings + Goals
 4. Settings: categories and budgets
-5. One-time import from the Google Sheet
-6. PWA: manifest, home-screen icon sizes, offline shell
+5. ✅ Import from the Google Sheet
+6. ✅ Installable: manifest and home-screen icons (offline shell — later)

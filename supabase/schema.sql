@@ -1,6 +1,7 @@
 -- Wally database schema
--- Run once in Supabase → SQL Editor on a fresh project. Safe to re-run: every
--- object is created with IF NOT EXISTS / OR REPLACE.
+-- Run once in Supabase → SQL Editor on a fresh project, then run every file in
+-- supabase/migrations/ in order. Safe to re-run: every object is created with
+-- IF NOT EXISTS / OR REPLACE.
 --
 -- Every table carries user_id (defaulting to auth.uid()) and has Row Level
 -- Security so each person only ever sees their own rows. Child rows reference
@@ -75,7 +76,7 @@ create table if not exists public.recurring (
   category_id uuid,
   name        text not null check (char_length(name) between 1 and 60),
   amount      numeric(12, 2) not null check (amount > 0),
-  frequency   text not null default 'monthly' check (frequency in ('weekly', 'monthly', 'yearly')),
+  frequency   text not null default 'monthly' check (frequency in ('weekly', 'monthly', 'quarterly', 'yearly')),
   next_due    date not null,
   end_date    date,
   active      boolean not null default true,

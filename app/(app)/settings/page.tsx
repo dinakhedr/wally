@@ -1,4 +1,5 @@
-import { LogOut } from "lucide-react";
+import Link from "next/link";
+import { ChevronRight, FileSpreadsheet, LogOut } from "lucide-react";
 import { signOut, updateSettings } from "@/app/actions";
 import { Card, SectionTitle } from "@/components/Card";
 import { PageHeader } from "@/components/PageHeader";
@@ -46,10 +47,16 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
         </Card>
       </form>
 
-      <Card className="mt-4">
-        <SectionTitle>Coming soon</SectionTitle>
-        <p className="text-sm text-muted">Edit categories and per-category budgets, and import from your old Google Sheet.</p>
-      </Card>
+      <Link href="/settings/import" className="mt-4 flex items-center gap-4 rounded-3xl bg-card p-5 shadow-sm ring-1 ring-line">
+        <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-mint-soft text-mint">
+          <FileSpreadsheet size={22} />
+        </span>
+        <span className="flex-1">
+          <span className="block font-bold">Import from Google Sheet</span>
+          <span className="block text-sm text-muted">Bring in your old Expenses Tracker</span>
+        </span>
+        <ChevronRight size={20} className="text-muted" />
+      </Link>
 
       <form action={signOut} className="mt-4">
         <button className="flex w-full items-center justify-center gap-2 rounded-2xl py-3.5 font-bold text-coral ring-1 ring-line">

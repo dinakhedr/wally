@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireUser } from "@/lib/supabase/server";
 import { CURRENCIES } from "@/lib/format";
+import type { ImportPayload } from "@/lib/import";
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -62,4 +63,44 @@ export async function signOut() {
   const { supabase } = await requireUser();
   await supabase.auth.signOut();
   redirect("/login");
+}
+
+export type ImportResult =
+  | { ok: true; counts: Record<string, number> }
+  | { ok: false; error: string };
+
+const IMPORT_LISTS = [
+  "categories",
+  "expenses",
+  "income",
+  "recurring",
+  "recurring_payments",
+  "installments",
+  "installment_payments",
+] as const;
+
+export async function importSheet(payload: ImportPayload, hideUnusedStarters: boolean): Promise<ImportResult> {
+  const { supabase } = await requireUser();
+
+  if (!payload || typeof payload !== "object" || IMPORT_LISTS.some((k) => !Array.isArray(payload[k]))) {
+    return { ok: false, error: "That file couldn’t be read. Please try again." };
+  }
+  if (IMPORT_LISTS.reduce((n, k) => n + payload[k].length, 0) > 50_000) {
+    return { ok: false, error: "That sheet is too big to import in one go." };
+  }
+
+  const { data, error } = await supabase.rpc("import_sheet", { p: payload, hide_unused_starters: hideUnusedStarters });
+  if (error) {
+    console.error("import_sheet failed", error);
+    return {
+      ok: false,
+      // PGRST202: function not found, i.e. migration 002 hasn't been run yet.
+      error: error.code === "PGRST202"
+        ? "Wally’s database needs a quick update before importing. Run supabase/migrations/002_import.sql in Supabase."
+        : "Import failed and nothing was changed. Please try again.",
+    };
+  }
+
+  revalidatePath("/", "layout");
+  return { ok: true, counts: data as Record<string, number> };
 }

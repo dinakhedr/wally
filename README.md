@@ -10,7 +10,8 @@ See [`docs/design.md`](docs/design.md) for the full design spec and roadmap.
 
 ### 1. Supabase
 
-1. **SQL Editor** → paste all of [`supabase/schema.sql`](supabase/schema.sql) → **Run**.
+1. **SQL Editor** → paste all of [`supabase/schema.sql`](supabase/schema.sql) → **Run**. Then do the
+   same for each file in [`supabase/migrations/`](supabase/migrations) in order.
 2. **Authentication → Sign In / Providers → Google** → enable it and paste the
    Client ID and Client Secret from Google Cloud (below).
 3. **Authentication → URL Configuration**

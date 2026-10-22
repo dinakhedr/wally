@@ -37,7 +37,7 @@ export type Recurring = {
   id: string;
   name: string;
   amount: number;
-  frequency: "weekly" | "monthly" | "yearly";
+  frequency: "weekly" | "monthly" | "quarterly" | "yearly";
   next_due: string;
   category: Pick<Category, "name" | "emoji" | "color"> | null;
 };
