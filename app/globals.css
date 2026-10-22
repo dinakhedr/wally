@@ -1,0 +1,93 @@
+@import "tailwindcss";
+
+/* Wally palette. Brand = violet; coral = expenses; mint = income;
+   sun = budgets; sky = recurring & installments. Surfaces flip for dark mode. */
+:root {
+  --bg: #f6f4fb;
+  --card: #ffffff;
+  --card-2: #f0edf8;
+  --ink: #1d1a2b;
+  --muted: #6e6884;
+  --line: #e6e1f2;
+
+  --violet: #6d4aff;
+  --violet-soft: #ece6ff;
+  --coral: #ff6b5e;
+  --coral-soft: #ffe7e4;
+  --mint: #16b886;
+  --mint-soft: #dcf7ee;
+  --sun: #f5a524;
+  --sun-soft: #fff1d6;
+  --sky: #2f9bf0;
+  --sky-soft: #dff0fe;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #12101b;
+    --card: #1c1928;
+    --card-2: #262236;
+    --ink: #f3f0fb;
+    --muted: #a39cba;
+    --line: #2e2a40;
+
+    --violet: #9d84ff;
+    --violet-soft: #2c2452;
+    --coral: #ff8a7f;
+    --coral-soft: #3d2226;
+    --mint: #3fd6a3;
+    --mint-soft: #173a30;
+    --sun: #ffc25c;
+    --sun-soft: #3a2e17;
+    --sky: #66b8ff;
+    --sky-soft: #172f45;
+  }
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-card: var(--card);
+  --color-card-2: var(--card-2);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-violet: var(--violet);
+  --color-violet-soft: var(--violet-soft);
+  --color-coral: var(--coral);
+  --color-coral-soft: var(--coral-soft);
+  --color-mint: var(--mint);
+  --color-mint-soft: var(--mint-soft);
+  --color-sun: var(--sun);
+  --color-sun-soft: var(--sun-soft);
+  --color-sky: var(--sky);
+  --color-sky-soft: var(--sky-soft);
+  --font-sans: var(--font-jakarta), ui-sans-serif, system-ui, sans-serif;
+}
+
+html {
+  color-scheme: light dark;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-feature-settings: "tnum" 1;
+}
+
+input,
+select,
+textarea {
+  font-size: 16px; /* stops iOS zooming into fields */
+}
+
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  scrollbar-width: none;
+}
