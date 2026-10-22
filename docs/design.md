@@ -36,10 +36,13 @@ Add. Settings opens from the profile picture in every page header.
 - **Today**: today’s expenses and income.
 
 ### Add ✅
-- Expense / Income toggle, big amount field.
-- Category grid, 4 per row: top 7 most recently used + **More**, which opens a
-  full-screen, searchable list of every category.
-- Date chips: Today · Yesterday · Pick date. Optional note.
+Layout A (see `docs/mockups/add-layouts.html`), full screen, no scrolling:
+- Expense / Income toggle.
+- **Category first**: the 3 most recent as tiles + **All** (full-screen,
+  searchable list). A category picked from All takes the third tile's place.
+- Amount with Wally's own number pad (no phone keyboard), max 2 decimals.
+- Date pill (opens the date picker) + “Yesterday?” shortcut; note pill opens a
+  note field only when tapped.
 
 ### Activity ✅
 - One list for expenses and income, grouped by day with day totals.
