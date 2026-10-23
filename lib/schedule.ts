@@ -48,7 +48,7 @@ export function billSchedule(bills: Bill[], today: string, ahead = 12) {
   for (const lines of byMonth.values())
     lines.sort((a, b) => (a.kind === b.kind ? a.date.localeCompare(b.date) : a.kind === "due" ? -1 : 1));
 
-  const past = [...byMonth.keys()].filter((m) => m < thisMonth).sort().reverse();
+  const past = [...byMonth.keys()].filter((m) => m < thisMonth).sort();
   return { byMonth, thisMonth, past, future: future.slice(1) };
 }
 
@@ -86,6 +86,6 @@ export function installmentSchedule(rows: InstallmentRow[], today: string, ahead
   for (const lines of byMonth.values())
     lines.sort((a, b) => (a.paid === b.paid ? a.date.localeCompare(b.date) : a.paid ? 1 : -1));
 
-  const past = [...byMonth.keys()].filter((m) => m < thisMonth).sort().reverse();
+  const past = [...byMonth.keys()].filter((m) => m < thisMonth).sort();
   return { byMonth, thisMonth, past, future, plans };
 }

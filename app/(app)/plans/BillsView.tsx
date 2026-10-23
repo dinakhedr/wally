@@ -17,7 +17,7 @@ export function BillsView({ bills, today, currency }: { bills: Bill[]; today: st
   const left = current.reduce((n, l) => n + (l.kind === "due" ? l.bill.amount : 0), 0);
   const year = (m: string) => m.slice(0, 4) !== thisMonth.slice(0, 4);
 
-  const rows = [...future, ...past]
+  const rows = [...past, ...future]
     .filter((m) => byMonth.get(m)?.length)
     .map((m) => {
       const lines = byMonth.get(m)!;

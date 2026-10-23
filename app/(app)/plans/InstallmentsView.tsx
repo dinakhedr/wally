@@ -22,7 +22,7 @@ export function InstallmentsView({ rows, today, currency }: { rows: InstallmentR
   // Months: what's due (or was paid) each month, and which plans end then.
   const { byMonth, past, future } = installmentSchedule(rows, today);
   const year = (m: string) => m.slice(0, 4) !== thisMonth.slice(0, 4);
-  const monthRows = [...future, ...past]
+  const monthRows = [...past, ...future]
     .filter((m) => byMonth.get(m)?.length)
     .map((m) => {
       const lines = byMonth.get(m)!;
