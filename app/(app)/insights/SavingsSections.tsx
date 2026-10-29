@@ -5,27 +5,26 @@ import { Card, SectionTitle } from "@/components/Card";
 import { SavingsBars } from "@/components/charts/SavingsBars";
 import type { Goal } from "@/lib/data";
 import { formatMoney, parseISODate } from "@/lib/format";
-import { monthTotals } from "@/lib/insights";
+import type { MonthTotals } from "@/lib/insights";
 import { installmentStatus, monthOf, type InstallmentRow } from "@/lib/plans";
-import type { Shared } from "./shared";
 
 const monthsBetween = (a: string, b: string) =>
   (Number(b.slice(0, 4)) - Number(a.slice(0, 4))) * 12 + (Number(b.slice(5, 7)) - Number(a.slice(5, 7)));
 
-export function SavingsView({
-  months,
-  entries,
-  billPayments,
-  installmentPayments,
+/** Savings per month (last 6) and a 12-month projection — shown on Overview. */
+export function SavingsTrend({
+  series,
   currency,
   today,
   installments,
-  goals,
-}: Shared & { installments: InstallmentRow[]; goals: Goal[] }) {
+}: {
+  series: MonthTotals[]; // last 6 months, oldest first
+  currency: string;
+  today: string;
+  installments: InstallmentRow[];
+}) {
   const fmt = (n: number) => formatMoney(n, currency);
-  const series = monthTotals(months, entries, billPayments, installmentPayments);
   const current = series[series.length - 1];
-  const rate = current.income > 0 ? Math.round((current.savings / current.income) * 100) : null;
 
   // Average over finished months that have any activity.
   const finished = series.slice(0, -1).filter((m) => m.income > 0 || m.spending > 0);
@@ -45,24 +44,8 @@ export function SavingsView({
 
   return (
     <>
-      <section className="flex items-center justify-between rounded-3xl bg-violet-soft p-5">
-        <div>
-          <p className="text-xs font-bold uppercase tracking-wide text-muted">{current.savings >= 0 ? "Saved this month" : "Overspent this month"}</p>
-          <p className="mt-1 text-3xl font-extrabold tabular-nums">{fmt(Math.round(Math.abs(current.savings)))}</p>
-          <p className="text-xs text-muted">
-            Income {fmt(Math.round(current.income))} − spending {fmt(Math.round(current.spending))}
-          </p>
-        </div>
-        {rate != null && (
-          <div className="text-right">
-            <p className="text-3xl font-extrabold tabular-nums">{rate}%</p>
-            <p className="text-xs text-muted">savings rate</p>
-          </div>
-        )}
-      </section>
-
       <Card>
-        <SectionTitle>Last 6 months</SectionTitle>
+        <SectionTitle>Savings — last 6 months</SectionTitle>
         <SavingsBars data={series} currency={currency} />
       </Card>
 
@@ -84,7 +67,15 @@ export function SavingsView({
           </ul>
         )}
       </Card>
+    </>
+  );
+}
 
+/** Savings goals: progress, add money, edit — shown on Overview. */
+export function Goals({ goals, currency }: { goals: Goal[]; currency: string }) {
+  const fmt = (n: number) => formatMoney(n, currency);
+  return (
+    <>
       <Card>
         <SectionTitle
           action={

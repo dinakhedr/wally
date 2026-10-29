@@ -11,7 +11,7 @@ const amountOf = (v: FormDataEntryValue | null) => {
   return Number.isFinite(n) ? Math.round(n * 100) / 100 : NaN;
 };
 
-const BACK = "/insights?tab=savings";
+const BACK = "/insights";
 
 export async function saveGoal(_prev: GoalState, form: FormData): Promise<GoalState> {
   const { supabase } = await requireUser();

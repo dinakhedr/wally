@@ -32,7 +32,7 @@ export function StatTile({
   return (
     <div className={`rounded-3xl p-4 ${tone}`}>
       <p className="text-xs font-bold uppercase tracking-wide text-muted">{label}</p>
-      <p className="mt-1 truncate text-lg font-extrabold tabular-nums">{formatMoney(value, currency)}</p>
+      <p className="mt-1 truncate text-lg font-extrabold tabular-nums">{formatMoney(Math.round(value), currency)}</p>
       <p className="mt-0.5 flex items-center gap-0.5 text-xs text-muted">
         {pct == null ? (
           "No data last month"

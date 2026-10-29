@@ -46,7 +46,7 @@ export function SpendingView({
       .map((c) => ({ key: c.id, label: c.name, emoji: c.emoji, budget: c.budget!, spent: cats.find((x) => x.name === c.name)?.amount ?? 0 }))
       .sort((a, b) => b.spent / b.budget - a.spent / a.budget),
   ];
-  const isPast = month < thisMonth;
+  const rate = totals.income > 0 ? Math.round((totals.savings / totals.income) * 100) : null;
 
   return (
     <>
@@ -55,18 +55,32 @@ export function SpendingView({
           <ChevronLeft size={20} />
         </Link>
         <p className="font-bold">{monthLabel(month, { year: true })}</p>
-        {isPast ? (
-          <Link href={`/insights?tab=spending&month=${nextMonth}`} aria-label="Next month" className="rounded-full p-2 text-muted">
-            <ChevronRight size={20} />
-          </Link>
-        ) : (
-          <span className="w-9" />
-        )}
+        <Link href={`/insights?tab=spending&month=${nextMonth}`} aria-label="Next month" className="rounded-full p-2 text-muted">
+          <ChevronRight size={20} />
+        </Link>
+      </div>
+
+      {month > thisMonth && (
+        <p className="rounded-2xl bg-card-2 px-4 py-3 text-sm text-muted">
+          This month hasn’t started yet — totals fill in as you add income and pay bills.
+        </p>
+      )}
+
+      <div className="grid grid-cols-2 gap-3">
+        <div className="rounded-3xl bg-mint-soft p-4">
+          <p className="text-xs font-bold uppercase tracking-wide text-muted">Total income</p>
+          <p className="mt-1 truncate text-lg font-extrabold tabular-nums">{formatMoney(Math.round(totals.income), currency)}</p>
+        </div>
+        <div className="rounded-3xl bg-violet-soft p-4">
+          <p className="text-xs font-bold uppercase tracking-wide text-muted">{totals.savings >= 0 ? "Total savings" : "Overspent"}</p>
+          <p className="mt-1 truncate text-lg font-extrabold tabular-nums">{formatMoney(Math.round(Math.abs(totals.savings)), currency)}</p>
+          {rate != null && totals.savings >= 0 && <p className="text-xs text-muted">{rate}% of income</p>}
+        </div>
       </div>
 
       <Card>
         <p className="text-xs font-bold uppercase tracking-wide text-muted">Total spending</p>
-        <p className="mt-1 text-3xl font-extrabold tabular-nums">{formatMoney(totals.spending, currency)}</p>
+        <p className="mt-1 text-3xl font-extrabold tabular-nums">{formatMoney(Math.round(totals.spending), currency)}</p>
         <div className="mt-4">
           <SpendSplit expenses={totals.expenses} bills={totals.bills} installments={totals.installments} currency={currency} />
         </div>

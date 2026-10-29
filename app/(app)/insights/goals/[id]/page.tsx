@@ -16,7 +16,7 @@ export default async function GoalPage({ params }: { params: Promise<{ id: strin
 
   return (
     <>
-      <BackHeader href="/insights?tab=savings" title={goal ? goal.name : "New goal"} />
+      <BackHeader href="/insights" title={goal ? goal.name : "New goal"} />
       <GoalForm goal={goal} currency={profile.currency} />
       {goal && (
         <div className="mt-4">

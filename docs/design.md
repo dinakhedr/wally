@@ -54,12 +54,19 @@ Layout A (see `docs/mockups/add-layouts.html`), full screen, no scrolling:
   Income filters. Tap an entry to edit it; delete with confirmation.
 
 ### Insights ✅
-- **Overview**: income, spending, savings vs. last month; 6-month trend;
-  spending breakdown; daily pace; tips.
-- **Spending**: donut by category; categories vs. last month; budgets;
-  spending calendar; biggest expenses.
-- **Savings**: automatic (income − spending); savings rate; monthly chart;
-  optional **Goals** (e.g. “Emergency fund 40k / 60k”); year-ahead projection.
+Tabs: **Overview · Spending · Months** (“Insights revamp” row on the design canvas).
+- **Overview**: income / spending / saved vs. last month; **trend chart** with a
+  “6 months | This year” switch (6 months default; This year = January to now,
+  with the year's income / spent / saved) — tap a month for a pop-up with its
+  income, spending (expenses / bills / installments), saved and a link to its
+  Spending page; where it went; savings for the last 6 months; the year ahead;
+  daily pace; **goals**; tips.
+- **Spending**: any month, past or future; first row **Total income** and
+  **Total savings**, then total spending and its split; donut by category;
+  categories vs. last month; budgets; spending calendar; biggest expenses.
+- **Months** (table, “Months B”): a year (‹ year ›) as a table — Income,
+  Spending, Saved per month; tick months (or Select all) to see their combined
+  totals and monthly average. Upcoming months are greyed out.
 
 ### Plans ✅
 - **Bills**: this month in full (to pay first, then paid, with undo); a month
@@ -134,7 +141,7 @@ trigger creates the profile and the starter categories
 
 1. ✅ Scaffold, schema, Google sign-in, Home / Add / Activity
 2. ✅ Plans: bills and installments
-3. ✅ Insights: Overview, Spending, Savings + Goals
+3. ✅ Insights: Overview (incl. savings + goals), Spending, Months
 4. ✅ Settings: categories and budgets, delete data / account
 5. ✅ Import from the Google Sheet
 6. ✅ Installable: manifest and home-screen icons (offline shell — later)

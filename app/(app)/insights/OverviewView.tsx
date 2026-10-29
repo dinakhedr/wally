@@ -1,9 +1,11 @@
 import { Card, SectionTitle } from "@/components/Card";
-import { MonthBars } from "@/components/charts/MonthBars";
+import { TrendChart } from "@/components/charts/TrendChart";
+import type { Goal } from "@/lib/data";
 import { formatMoney, parseISODate } from "@/lib/format";
 import { categorySpend, monthTotals, tips } from "@/lib/insights";
 import { addMonths, installmentStatus, monthLabel, monthOf, type InstallmentRow } from "@/lib/plans";
 import type { Category } from "@/lib/types";
+import { Goals, SavingsTrend } from "./SavingsSections";
 import { SpendSplit, StatTile, type Shared } from "./shared";
 
 export function OverviewView({
@@ -15,8 +17,18 @@ export function OverviewView({
   today,
   categories,
   installments,
-}: Shared & { categories: Category[]; installments: InstallmentRow[]; monthlyBudget: number | null }) {
+  yearMonths,
+  goals,
+}: Shared & {
+  categories: Category[];
+  installments: InstallmentRow[];
+  monthlyBudget: number | null;
+  /** January to this month. */
+  yearMonths: string[];
+  goals: Goal[];
+}) {
   const series = monthTotals(months, entries, billPayments, installmentPayments);
+  const yearSeries = monthTotals(yearMonths, entries, billPayments, installmentPayments);
   const current = series[series.length - 1];
   const previous = series[series.length - 2];
   const fmt = (n: number) => formatMoney(n, currency);
@@ -55,8 +67,8 @@ export function OverviewView({
         <div className="col-span-2 flex items-center justify-between rounded-3xl bg-violet-soft p-4">
           <div>
             <p className="text-xs font-bold uppercase tracking-wide text-muted">{current.savings >= 0 ? "Saved" : "Overspent"}</p>
-            <p className="mt-1 text-2xl font-extrabold tabular-nums">{fmt(Math.abs(current.savings))}</p>
-            <p className="text-xs text-muted">Last month {fmt(previous.savings)}</p>
+            <p className="mt-1 text-2xl font-extrabold tabular-nums">{fmt(Math.round(Math.abs(current.savings)))}</p>
+            <p className="text-xs text-muted">Last month {fmt(Math.round(previous.savings))}</p>
           </div>
           {rate != null && (
             <div className="text-right">
@@ -68,14 +80,15 @@ export function OverviewView({
       </div>
 
       <Card>
-        <SectionTitle>Last 6 months</SectionTitle>
-        <MonthBars data={series} currency={currency} />
+        <TrendChart six={series} year={yearSeries} currency={currency} />
       </Card>
 
       <Card>
         <SectionTitle>Where it went this month</SectionTitle>
         <SpendSplit expenses={current.expenses} bills={current.bills} installments={current.installments} currency={currency} />
       </Card>
+
+      <SavingsTrend series={series} currency={currency} today={today} installments={installments} />
 
       <Card>
         <SectionTitle>Daily pace</SectionTitle>
@@ -95,6 +108,8 @@ export function OverviewView({
           of the month{previous.expenses > 0 && <> (last month: {fmt(Math.round(previous.expenses))})</>}.
         </p>
       </Card>
+
+      <Goals goals={goals} currency={currency} />
 
       {tipList.length > 0 && (
         <Card>
