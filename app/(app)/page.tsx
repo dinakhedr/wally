@@ -44,9 +44,9 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
   const left = budget != null ? budget - spent : null;
   const daysLeft = month.daysInMonth - now.getDate() + 1;
   const perDay = left != null && left > 0 ? left / daysLeft : 0;
-  const usedPct = budget ? Math.min(100, (spent / budget) * 100) : 0;
+  const usedPct = budget ? (spent / budget) * 100 : 0; // the ring caps at 100%, the label doesn't
 
-  const recent = sortByRecent(categories).slice(0, 4);
+  const recent = sortByRecent(categories).slice(0, 6);
   const todays = monthEntries.filter((e) => e.date === today);
   const firstName = profile.display_name?.split(" ")[0];
 
@@ -58,57 +58,75 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
         profile={profile}
       />
 
-      {/* Left to spend */}
-      <section className="rounded-3xl bg-gradient-to-br from-[#8a6bff] to-[#5a34f0] p-5 text-white shadow-lg shadow-violet/30">
-        {left != null ? (
-          <>
-            <p className="text-sm font-medium text-white/80">Left to spend in {now.toLocaleDateString("en", { month: "long" })}</p>
-            <p className={`mt-1 text-4xl font-extrabold tracking-tight tabular-nums ${left < 0 ? "text-[#ffd1cc]" : ""}`}>
-              {formatMoney(left, currency)}
+      {/* Left to spend: ring */}
+      {budget != null && left != null ? (
+        <section className="flex items-center gap-5 rounded-3xl bg-card p-5 ring-1 ring-line">
+          <BudgetRing pct={usedPct} over={left < 0} />
+          <div className="min-w-0">
+            <p className="text-sm font-semibold text-muted">{left < 0 ? "Over budget by" : "Left to spend"}</p>
+            <p className={`text-3xl font-extrabold tracking-tight tabular-nums ${left < 0 ? "text-coral" : ""}`}>
+              <span className="mr-1 text-base">{currency}</span>
+              {Math.round(Math.abs(left)).toLocaleString("en")}
             </p>
-            <div className="mt-4 h-2 overflow-hidden rounded-full bg-white/20">
-              <div
-                className={`h-full rounded-full ${usedPct >= 100 ? "bg-[#ff8a7f]" : usedPct >= 80 ? "bg-[#ffc25c]" : "bg-white"}`}
-                style={{ width: `${usedPct}%` }}
-              />
-            </div>
-            <div className="mt-3 flex justify-between text-sm text-white/85">
-              <span>
-                {formatMoney(spent, currency)} of {formatMoney(budget!, currency)}
-                <span className="text-white/60"> · {budgetSource}</span>
-              </span>
-              {left > 0 && <span>~{formatMoney(Math.floor(perDay), currency)}/day</span>}
-            </div>
-            <SpentBreakdown expenses={expensesSpent} paid={paid} currency={currency} />
-          </>
-        ) : (
-          <>
-            <p className="text-sm font-medium text-white/80">Spent this month</p>
-            <p className="mt-1 text-4xl font-extrabold tracking-tight tabular-nums">{formatMoney(spent, currency)}</p>
-            <SpentBreakdown expenses={expensesSpent} paid={paid} currency={currency} />
-            <Link href="/settings" className="mt-3 inline-flex items-center gap-1 text-sm font-semibold text-white/90">
-              Set a monthly budget to see what’s left <ChevronRight size={16} />
-            </Link>
-          </>
-        )}
+            <p className="mt-0.5 text-sm text-muted">
+              {left > 0 ? `~${formatMoney(Math.floor(perDay), currency)}/day · ` : ""}
+              {daysLeft} day{daysLeft === 1 ? "" : "s"} left
+            </p>
+          </div>
+        </section>
+      ) : (
+        <Link href="/settings" className="flex items-center gap-3 rounded-3xl bg-violet-soft p-5">
+          <span className="min-w-0 flex-1">
+            <span className="block font-bold">Set a monthly budget</span>
+            <span className="block text-sm text-muted">See what’s left to spend and a daily allowance.</span>
+          </span>
+          <ChevronRight size={20} className="text-violet" />
+        </Link>
+      )}
+
+      {/* Spent this month */}
+      <section className="mt-4 rounded-3xl bg-card p-4 ring-1 ring-line">
+        <div className="flex items-baseline justify-between gap-2">
+          <span className="text-xs font-bold uppercase tracking-wide text-muted">Spent in {now.toLocaleDateString("en", { month: "long" })}</span>
+          {budget != null && (
+            <span className="text-right text-xs text-muted">
+              of {formatMoney(Math.round(budget), currency)}
+              {budgetSource !== "budget" && <span className="block">({budgetSource})</span>}
+            </span>
+          )}
+        </div>
+        <p className="mt-1 text-2xl font-extrabold tabular-nums">{formatMoney(Math.round(spent), currency)}</p>
+        <SpentSplit
+          currency={currency}
+          parts={[
+            { label: "Expenses", value: expensesSpent, color: "var(--cat-1)" },
+            { label: "Bills", value: paid.bills, color: "var(--cat-2)" },
+            { label: "Installments", value: paid.installments, color: "var(--cat-3)" },
+          ]}
+        />
       </section>
 
-      {/* Recent categories */}
-      <div className="mt-6">
-        <SectionTitle>Quick add</SectionTitle>
-        <div className="grid grid-cols-4 gap-2">
+      {/* Quick add: the 6 most recent categories, full names */}
+      <section className="mt-4 rounded-3xl bg-card p-2 ring-1 ring-line">
+        <div className="flex items-baseline justify-between px-2 pb-1.5 pt-1">
+          <span className="text-xs font-bold uppercase tracking-wide text-muted">Quick add</span>
+          <Link href="/add" className="text-sm font-bold text-violet">
+            All ›
+          </Link>
+        </div>
+        <div className="grid grid-cols-2 gap-x-1.5 gap-y-0.5">
           {recent.map((c) => (
             <Link
               key={c.id}
               href={`/add?category=${c.id}`}
-              className="flex flex-col items-center gap-1.5 rounded-2xl bg-card py-3 ring-1 ring-line transition active:scale-95"
+              className="flex min-h-12 items-center gap-2.5 rounded-2xl py-1.5 pl-1.5 pr-2.5 text-sm font-bold leading-tight transition active:scale-[.98] active:bg-card-2"
             >
-              <CategoryBubble emoji={c.emoji} color={c.color} />
-              <span className="w-full truncate px-1 text-center text-xs font-semibold">{c.name}</span>
+              <CategoryBubble emoji={c.emoji} color={c.color} size="sm" />
+              <span className="min-w-0">{c.name}</span>
             </Link>
           ))}
         </div>
-      </div>
+      </section>
 
       {/* Upcoming bills */}
       <Card className="mt-6">
@@ -167,19 +185,59 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
   );
 }
 
-function SpentBreakdown({
-  expenses,
-  paid,
-  currency,
-}: {
-  expenses: number;
-  paid: { bills: number; installments: number };
-  currency: string;
-}) {
+/** Share of the budget used, as a ring. */
+function BudgetRing({ pct, over }: { pct: number; over: boolean }) {
+  const r = 50;
+  const c = 2 * Math.PI * r;
+  const shown = Math.min(100, Math.max(0, pct));
+  const label = pct >= 99 && pct < 100 ? pct.toFixed(1) : Math.round(pct).toString();
   return (
-    <p className="mt-2 text-xs text-white/70">
-      Expenses {formatMoney(Math.round(expenses), currency)} · Bills {formatMoney(Math.round(paid.bills), currency)} · Installments{" "}
-      {formatMoney(Math.round(paid.installments), currency)}
-    </p>
+    <div className="relative h-28 w-28 shrink-0">
+      <svg viewBox="0 0 120 120" className="h-full w-full -rotate-90" role="img" aria-label={`${label}% of budget used`}>
+        <circle cx="60" cy="60" r={r} fill="none" strokeWidth="14" className="stroke-card-2" />
+        {shown > 0 && (
+          <circle
+            cx="60"
+            cy="60"
+            r={r}
+            fill="none"
+            strokeWidth="14"
+            strokeLinecap="round"
+            strokeDasharray={`${(shown / 100) * c} ${c}`}
+            className={over ? "stroke-coral" : "stroke-violet"}
+          />
+        )}
+      </svg>
+      <div className="absolute inset-0 flex flex-col items-center justify-center">
+        <span className="text-xl font-extrabold tabular-nums">{label}%</span>
+        <span className="text-[11px] text-muted">used</span>
+      </div>
+    </div>
+  );
+}
+
+/** Expenses / bills / installments as one bar, with a labelled amount under each. */
+function SpentSplit({ parts, currency }: { parts: { label: string; value: number; color: string }[]; currency: string }) {
+  const total = parts.reduce((n, p) => n + p.value, 0);
+  return (
+    <>
+      <div className="mt-3 flex h-2.5 gap-0.5 overflow-hidden rounded-full bg-card-2" role="img" aria-label="Spending split">
+        {total > 0 &&
+          parts
+            .filter((p) => p.value > 0)
+            .map((p) => <div key={p.label} style={{ width: `${(p.value / total) * 100}%`, background: p.color }} />)}
+      </div>
+      <dl className="mt-3 grid grid-cols-3 gap-2">
+        {parts.map((p) => (
+          <div key={p.label}>
+            <dt className="flex items-center gap-1.5 text-xs text-muted">
+              <i className="h-2.5 w-2.5 shrink-0 rounded-sm" style={{ background: p.color }} aria-hidden />
+              {p.label}
+            </dt>
+            <dd className="mt-0.5 text-sm font-bold tabular-nums">{formatMoney(Math.round(p.value), currency)}</dd>
+          </div>
+        ))}
+      </dl>
+    </>
   );
 }

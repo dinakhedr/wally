@@ -16,7 +16,6 @@ export function InstallmentsView({ rows, today, currency }: { rows: InstallmentR
   const active = all.filter((i) => !i.done).sort((a, b) => a.lastDue.localeCompare(b.lastDue));
   const finished = all.filter((i) => i.done);
 
-  const monthly = active.reduce((n, i) => n + i.monthly_amount, 0);
   const remaining = active.reduce((n, i) => n + i.remainingAmount, 0);
 
   // Months: what's due (or was paid) each month, and which plans end then.
@@ -35,9 +34,8 @@ export function InstallmentsView({ rows, today, currency }: { rows: InstallmentR
         href: `/plans/month/${m}?type=installments`,
         past: m < thisMonth,
         note: ending.length ? (
-          <span className="mt-0.5 block text-xs text-muted">
-            🎉 {ending.map((e) => e.name).join(", ")} {ending.length === 1 ? "ends" : "end"}, freeing up{" "}
-            <b className="text-ink">{formatMoney(ending.reduce((n, e) => n + e.monthly_amount, 0), currency)}</b> a month
+          <span className="mt-0.5 block text-xs font-semibold text-ink">
+            🎉 {ending.map((e) => e.name).join(", ")} {ending.length === 1 ? "ends" : "end"}
           </span>
         ) : undefined,
       };
@@ -45,20 +43,17 @@ export function InstallmentsView({ rows, today, currency }: { rows: InstallmentR
 
   return (
     <div className="space-y-4">
-      <section className="grid grid-cols-2 gap-3">
-        <div className="rounded-3xl bg-sky-soft p-4">
-          <p className="text-xs font-bold uppercase tracking-wide text-sky">Each month</p>
-          <p className="mt-1 truncate text-lg font-extrabold tabular-nums">{formatMoney(monthly, currency)}</p>
-          <p className="text-xs text-muted">
-            {active.length} active plan{active.length === 1 ? "" : "s"}
-          </p>
-        </div>
-        <div className="rounded-3xl bg-card p-4 ring-1 ring-line">
-          <p className="text-xs font-bold uppercase tracking-wide text-muted">Left to pay</p>
-          <p className="mt-1 truncate text-lg font-extrabold tabular-nums">{formatMoney(Math.round(remaining), currency)}</p>
-          <p className="text-xs text-muted">across all plans</p>
-        </div>
-      </section>
+      {active.length > 0 && (
+        <section className="flex items-baseline justify-between gap-3 rounded-3xl bg-card p-4 ring-1 ring-line">
+          <span>
+            <span className="block text-xs font-bold uppercase tracking-wide text-muted">Left to pay</span>
+            <span className="text-xs text-muted">
+              across {active.length} active plan{active.length === 1 ? "" : "s"}
+            </span>
+          </span>
+          <span className="text-xl font-extrabold tabular-nums">{formatMoney(Math.round(remaining), currency)}</span>
+        </section>
+      )}
 
       <Link
         href="/plans/installments/new"

@@ -28,21 +28,25 @@ Add. Settings opens from the profile picture in every page header.
 ## Screens
 
 ### Home ✅
-- **Left to spend** this month = monthly budget − spent. Budget falls back to
-  the sum of category budgets, then to this month’s income. Shows a progress
-  bar and a per-day allowance for the rest of the month.
-- **Quick add**: the 4 most recently used categories.
+Layout “Home · 4” on the design canvas:
+- **Ring card**: % of budget used as a ring, **left to spend** (or over by),
+  per-day allowance and days left. Budget falls back to the sum of category
+  budgets, then to this month’s income. No budget → a “Set a monthly budget” card.
+- **Spent card**: spent this month of the budget, one bar split into
+  Expenses / Bills / Installments with an amount under each.
+- **Quick add**: the 6 most recent categories as a two-column list (full names).
 - **Coming up**: bills due in the next 14 days.
 - **Today**: today’s expenses and income.
 
 ### Add ✅
 Layout A (see `docs/mockups/add-layouts.html`), full screen, no scrolling:
 - Expense / Income toggle.
-- **Category first**: the 3 most recent as tiles + **All** (full-screen,
-  searchable list). A category picked from All takes the third tile's place.
+- **Category first**: the 6 most recent as a two-column list with full names
+  (“Recent · 3” on the design canvas) + **All ›** (full-screen, searchable
+  list). A category picked from All takes the last spot.
 - Amount with Wally's own number pad (no phone keyboard), max 2 decimals.
-- Date pill (opens the date picker) + “Yesterday?” shortcut; note pill opens a
-  note field only when tapped.
+- Date pill (opens the date picker; past or future dates) + “Yesterday?”
+  shortcut; note pill opens a note field only when tapped.
 
 ### Activity ✅
 - One list for expenses and income, grouped by day with day totals.
@@ -59,11 +63,12 @@ Layout A (see `docs/mockups/add-layouts.html`), full screen, no scrolling:
 
 ### Plans ✅
 - **Bills**: this month in full (to pay first, then paid, with undo); a month
-  list (total + count per month, tap to open that month's bills) with past
-  months behind a "Show past months" toggle. **Pay** appears only once a bill's
-  date has come. Add, edit, pause, delete.
-- **Installments**: every active installment with progress and Pay (only once
-  due); a month list like Bills, noting which plans end and what they free up.
+  list including this month (total + count, tap to open that month's bills)
+  with past months — oldest first — behind a "Show past months" toggle.
+  **Pay** appears only once a bill's date has come; paid rows carry a green
+  **Paid** pill. Add, edit, pause, delete.
+- **Installments**: “Left to pay” across active plans, each plan with progress
+  and Pay (only once due); a month list like Bills noting “🎉 X ends”.
 
 ### Settings
 - Currency and monthly budget ✅
@@ -103,6 +108,9 @@ Plain SVG, no chart library. Spend `#e8604f` / income `#14a37a` and the six
 category colours (`--cat-1…6`, “Other” grey) were checked with the dataviz
 palette validator for colour-blind separation and contrast in light and dark.
 Every chart has a legend or direct labels and tap/hover values.
+
+## Mockups
+Design canvas: https://claude.ai/artifact/FzwM4v3dnqk6h4UJMUfjPk (private to the owner).
 
 ## Data
 

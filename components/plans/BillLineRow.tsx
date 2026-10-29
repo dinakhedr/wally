@@ -5,6 +5,7 @@ import { CategoryBubble } from "@/components/CategoryBubble";
 import { dueLabel, formatMoney, parseISODate } from "@/lib/format";
 import { FREQUENCY_LABEL } from "@/lib/plans";
 import type { BillLine } from "@/lib/schedule";
+import { StatusPill } from "./StatusPill";
 
 const shortDate = (iso: string) => parseISODate(iso).toLocaleDateString("en", { day: "numeric", month: "short" });
 
@@ -18,11 +19,15 @@ export function BillLineRow({ line, currency, today, back }: { line: BillLine; c
         <CategoryBubble emoji={bill.category?.emoji ?? "🔁"} color={bill.category?.color ?? "sky"} size="sm" />
         <span className="min-w-0 flex-1">
           <span className="block truncate font-semibold">{bill.name}</span>
-          <span className={`block text-xs ${overdue ? "font-semibold text-coral" : "text-muted"}`}>
-            {line.kind === "paid"
-              ? `${line.skipped ? "Skipped" : "Paid"} · ${shortDate(line.date)}`
-              : `${line.payable || soon ? dueLabel(line.date) : shortDate(line.date)} · ${FREQUENCY_LABEL[bill.frequency]}`}
-          </span>
+          {line.kind === "paid" ? (
+            <span className="mt-0.5 flex items-center gap-1.5 text-xs text-muted">
+              <StatusPill skipped={line.skipped} /> {shortDate(line.date)}
+            </span>
+          ) : (
+            <span className={`block text-xs ${overdue ? "font-semibold text-coral" : "text-muted"}`}>
+              {`${line.payable || soon ? dueLabel(line.date) : shortDate(line.date)} · ${FREQUENCY_LABEL[bill.frequency]}`}
+            </span>
+          )}
         </span>
       </Link>
       <span className={`shrink-0 font-bold tabular-nums ${line.kind === "paid" ? "text-muted" : ""}`}>

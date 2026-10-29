@@ -3,6 +3,7 @@ import { Check } from "lucide-react";
 import { payInstallment } from "@/app/plans-actions";
 import { dueLabel, formatMoney, parseISODate } from "@/lib/format";
 import type { InstallmentLine } from "@/lib/schedule";
+import { StatusPill } from "./StatusPill";
 
 const shortDate = (iso: string) => parseISODate(iso).toLocaleDateString("en", { day: "numeric", month: "short" });
 
@@ -13,8 +14,9 @@ export function InstallmentLineRow({ line, currency, today, back }: { line: Inst
     <li className="flex items-center gap-3 py-3">
       <Link href={`/plans/installments/${plan.id}`} className="min-w-0 flex-1">
         <span className="block truncate font-semibold">{plan.name}</span>
-        <span className={`block text-xs ${overdue ? "font-semibold text-coral" : "text-muted"}`}>
-          Month {line.seq} of {plan.months_total} · {line.paid ? `Paid ${shortDate(line.date)}` : line.payable ? dueLabel(line.date) : shortDate(line.date)}
+        <span className={`mt-0.5 flex flex-wrap items-center gap-x-1.5 text-xs ${overdue ? "font-semibold text-coral" : "text-muted"}`}>
+          {line.paid && <StatusPill />}
+          Month {line.seq} of {plan.months_total} · {line.paid ? shortDate(line.date) : line.payable ? dueLabel(line.date) : shortDate(line.date)}
           {plan.note ? ` · ${plan.note}` : ""}
         </span>
       </Link>

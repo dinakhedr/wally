@@ -17,13 +17,14 @@ export function BillsView({ bills, today, currency }: { bills: Bill[]; today: st
   const left = current.reduce((n, l) => n + (l.kind === "due" ? l.bill.amount : 0), 0);
   const year = (m: string) => m.slice(0, 4) !== thisMonth.slice(0, 4);
 
-  const rows = [...past, ...future]
+  // The current month is listed too, so the list reads continuously with past months shown.
+  const rows = [...past, thisMonth, ...future]
     .filter((m) => byMonth.get(m)?.length)
     .map((m) => {
       const lines = byMonth.get(m)!;
       return {
         month: m,
-        label: monthLabel(m, { year: year(m) }),
+        label: m === thisMonth ? `${monthLabel(m)} · this month` : monthLabel(m, { year: year(m) }),
         total: formatMoney(linesTotal(lines), currency),
         count: `${lines.length} bill${lines.length === 1 ? "" : "s"}`,
         href: `/plans/month/${m}`,
@@ -33,14 +34,6 @@ export function BillsView({ bills, today, currency }: { bills: Bill[]; today: st
 
   return (
     <div className="space-y-4">
-      <section className="rounded-3xl bg-sky-soft p-5">
-        <p className="text-sm font-semibold text-sky">{monthLabel(thisMonth)} bills</p>
-        <p className="mt-1 text-3xl font-extrabold tabular-nums">{formatMoney(linesTotal(current), currency)}</p>
-        <p className="mt-1 text-sm text-muted">
-          Paid {formatMoney(paid, currency)} · Left {formatMoney(left, currency)}
-        </p>
-      </section>
-
       <Link href="/plans/bills/new" className="flex items-center justify-center gap-2 rounded-2xl bg-card py-3.5 font-bold text-violet ring-1 ring-line">
         <Plus size={18} /> Add a bill
       </Link>
@@ -51,8 +44,11 @@ export function BillsView({ bills, today, currency }: { bills: Bill[]; today: st
         <Card className="!p-4">
           <div className="flex items-baseline justify-between px-1">
             <h2 className="font-bold">{monthLabel(thisMonth)}</h2>
-            <span className="text-sm font-bold tabular-nums text-muted">{formatMoney(linesTotal(current), currency)}</span>
+            <span className="text-sm font-bold tabular-nums">{formatMoney(linesTotal(current), currency)}</span>
           </div>
+          <p className="px-1 text-xs text-muted">
+            Paid {formatMoney(paid, currency)} · Left {formatMoney(left, currency)}
+          </p>
           <ul className="mt-1 divide-y divide-line">
             {current.map((l) => (
               <BillLineRow key={`${l.kind}-${l.bill.id}-${l.date}`} line={l} currency={currency} today={today} back="/plans" />
@@ -61,7 +57,7 @@ export function BillsView({ bills, today, currency }: { bills: Bill[]; today: st
         </Card>
       )}
 
-      {rows.length > 0 && <MonthList title="Coming months" rows={rows} />}
+      {rows.length > 0 && <MonthList title="Months" rows={rows} />}
 
       {paused.length > 0 && (
         <Card className="!p-4">

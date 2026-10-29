@@ -2,13 +2,13 @@
 
 import Link from "next/link";
 import { useActionState, useMemo, useState } from "react";
-import { CalendarDays, Delete, LayoutGrid, PencilLine, Search, X } from "lucide-react";
+import { CalendarDays, Delete, PencilLine, Search, X } from "lucide-react";
 import { addEntry, type AddState } from "@/app/actions";
 import { CategoryBubble } from "@/components/CategoryBubble";
 import { parseISODate, toISODate } from "@/lib/format";
 import type { Category, Kind } from "@/lib/types";
 
-const RECENT = 3;
+const RECENT = 6;
 const KEYS = ["1", "2", "3", "4", "5", "6", "7", "8", "9", ".", "0", "back"] as const;
 
 /** Applies one keypad press to the amount text: max 2 decimals, 10 digits. */
@@ -53,7 +53,7 @@ export function AddForm({
   const ofKind = useMemo(() => categories.filter((c) => c.kind === kind), [categories, kind]);
   const selected = ofKind.find((c) => c.id === categoryId) ?? null;
 
-  // The 3 most recent; a category picked from "All" takes the last spot so it stays visible.
+  // The 6 most recent; a category picked from "All" takes the last spot so it stays visible.
   const recent = useMemo(() => {
     const top = ofKind.slice(0, RECENT);
     if (selected && !top.some((c) => c.id === selected.id)) top[top.length - 1] = selected;
@@ -105,39 +105,37 @@ export function AddForm({
           <span className="w-10" />
         </div>
 
-        {/* 1. Category */}
-        <p className="mt-5 px-1 text-xs font-bold uppercase tracking-wide text-muted">Category</p>
-        <div className="mt-2 grid grid-cols-4 gap-2">
-          {recent.map((c) => (
-            <button
-              key={c.id}
-              type="button"
-              onClick={() => setCategoryId(c.id)}
-              aria-pressed={c.id === categoryId}
-              className={`flex flex-col items-center gap-1.5 rounded-2xl px-1 py-2.5 transition active:scale-95 ${
-                c.id === categoryId ? "bg-violet-soft ring-2 ring-violet" : "bg-card ring-1 ring-line"
-              }`}
-            >
-              <CategoryBubble emoji={c.emoji} color={c.color} size="sm" />
-              <span className="w-full truncate text-center text-[11px] font-bold">{c.name}</span>
+        {/* 1. Category: the 6 most recent as a two-column list, full names */}
+        <div className="mt-4 rounded-3xl bg-card p-2 ring-1 ring-line">
+          <div className="flex items-baseline justify-between px-2 pb-1.5 pt-1">
+            <span className="text-xs font-bold uppercase tracking-wide text-muted">Recent</span>
+            <button type="button" onClick={() => setShowAll(true)} className="text-sm font-bold text-violet">
+              All ›
             </button>
-          ))}
-          <button
-            type="button"
-            onClick={() => setShowAll(true)}
-            className="flex flex-col items-center gap-1.5 rounded-2xl px-1 py-2.5 ring-1 ring-line transition active:scale-95"
-          >
-            <span className="flex h-9 w-9 items-center justify-center rounded-2xl bg-card-2 text-violet">
-              <LayoutGrid size={18} />
-            </span>
-            <span className="text-[11px] font-bold text-violet">All</span>
-          </button>
+          </div>
+          <div className="grid grid-cols-2 gap-x-1.5 gap-y-0.5">
+            {recent.map((c) => (
+              <button
+                key={c.id}
+                type="button"
+                onClick={() => setCategoryId(c.id)}
+                aria-pressed={c.id === categoryId}
+                className={`flex min-h-12 items-center gap-2.5 rounded-2xl py-1.5 pl-1.5 pr-2.5 text-left text-sm font-bold leading-tight transition active:scale-[.98] ${
+                  c.id === categoryId ? "bg-violet-soft ring-2 ring-violet" : ""
+                }`}
+              >
+                <CategoryBubble emoji={c.emoji} color={c.color} size="sm" />
+                <span className="min-w-0">{c.name}</span>
+              </button>
+            ))}
+          </div>
+          {!recent.length && <p className="px-2 py-3 text-sm text-muted">No categories yet. Tap All to pick one.</p>}
         </div>
 
         {/* 2. Amount */}
-        <div className="mt-6 flex items-baseline justify-center gap-2" aria-live="polite">
+        <div className="mt-4 flex items-baseline justify-center gap-2 [@media(min-height:700px)]:mt-5" aria-live="polite">
           <span className={`text-lg font-extrabold ${expense ? "text-coral" : "text-mint"}`}>{currency}</span>
-          <span className={`text-5xl font-extrabold tracking-tight tabular-nums ${amount ? "" : "text-line"}`}>{pretty(amount)}</span>
+          <span className={`text-4xl font-extrabold tracking-tight tabular-nums [@media(min-height:700px)]:text-5xl ${amount ? "" : "text-line"}`}>{pretty(amount)}</span>
         </div>
 
         {/* Date + note */}
@@ -147,7 +145,6 @@ export function AddForm({
             <input
               type="date"
               value={date}
-              max={today}
               onChange={(e) => e.target.value && setDate(e.target.value)}
               className="absolute inset-0 opacity-0"
               aria-label="Date"
@@ -189,14 +186,14 @@ export function AddForm({
         {state?.error && <p className="mt-3 text-center text-sm font-semibold text-coral">{state.error}</p>}
 
         {/* Keypad */}
-        <div className="mt-auto grid grid-cols-3 gap-2 pt-5">
+        <div className="mt-auto grid grid-cols-3 gap-2 pt-3">
           {KEYS.map((k) => (
             <button
               key={k}
               type="button"
               onClick={() => setAmount((v) => press(v, k))}
               aria-label={k === "back" ? "Delete digit" : k === "." ? "Decimal point" : k}
-              className={`flex h-14 items-center justify-center rounded-2xl text-2xl font-bold transition active:scale-95 ${
+              className={`flex h-11 items-center justify-center rounded-2xl text-2xl font-bold transition active:scale-95 [@media(min-height:700px)]:h-12 [@media(min-height:760px)]:h-14 ${
                 k === "back" || k === "." ? "bg-card-2 text-muted" : "bg-card ring-1 ring-line"
               }`}
             >

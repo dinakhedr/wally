@@ -16,6 +16,7 @@
   --coral-soft: #ffe7e4;
   --mint: #16b886;
   --mint-soft: #dcf7ee;
+  --mint-ink: #0a7552; /* readable green text on mint-soft */
   --sun: #f5a524;
   --sun-soft: #fff1d6;
   --sky: #2f9bf0;
@@ -51,6 +52,7 @@
   --coral-soft: #3d2226;
   --mint: #3fd6a3;
   --mint-soft: #173a30;
+  --mint-ink: #5fe3b5;
   --sun: #ffc25c;
   --sun-soft: #3a2e17;
   --sky: #66b8ff;
@@ -82,6 +84,8 @@
     --coral-soft: #3d2226;
     --mint: #3fd6a3;
     --mint-soft: #173a30;
+    --mint-ink: #5fe3b5;
+  --mint-ink: #5fe3b5;
     --sun: #ffc25c;
     --sun-soft: #3a2e17;
     --sky: #66b8ff;
@@ -111,6 +115,7 @@
   --color-coral-soft: var(--coral-soft);
   --color-mint: var(--mint);
   --color-mint-soft: var(--mint-soft);
+  --color-mint-ink: var(--mint-ink);
   --color-sun: var(--sun);
   --color-sun-soft: var(--sun-soft);
   --color-sky: var(--sky);
