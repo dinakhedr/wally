@@ -23,9 +23,10 @@ export function EntryRow({
     <>
       <CategoryBubble emoji={entry.category?.emoji ?? (income ? "💰" : "📦")} color={entry.category?.color ?? "violet"} />
       <div className="min-w-0 flex-1">
-        <p className="truncate font-semibold">{entry.note || name}</p>
+        {/* Category first, then the note (and day, where shown) beneath it. */}
+        <p className="truncate font-semibold">{name}</p>
         {(entry.note || dateLabel) && (
-          <p className="truncate text-sm text-muted">{[entry.note ? name : null, dateLabel].filter(Boolean).join(" · ")}</p>
+          <p className="truncate text-sm text-muted">{[entry.note, dateLabel].filter(Boolean).join(" · ")}</p>
         )}
       </div>
       <span className={`shrink-0 font-bold tabular-nums ${income ? "text-mint" : ""}`}>
