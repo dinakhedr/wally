@@ -40,19 +40,26 @@ export function sortByRecent(categories: Category[]) {
   });
 }
 
-type EntryFilter = { from?: string; to?: string; kind?: Kind | "all"; search?: string; limit?: number };
+type EntryFilter = {
+  from?: string;
+  to?: string;
+  kind?: Kind | "all";
+  search?: string;
+  limit?: number;
+  /** Most recently added first, instead of by entry date. */
+  recent?: boolean;
+};
 
 export async function getEntries(supabase: SupabaseClient, f: EntryFilter = {}): Promise<Entry[]> {
   const kind = f.kind ?? "all";
   const limit = f.limit ?? 500;
 
   const fetch = async (table: "expenses" | "income", dateCol: "spent_on" | "received_on", k: Kind) => {
-    let q = supabase
-      .from(table)
-      .select(`id, amount, note, ${dateCol}, created_at, category:categories(name, emoji, color)`)
-      .order(dateCol, { ascending: false })
-      .order("created_at", { ascending: false })
-      .limit(limit);
+    let q = supabase.from(table).select(`id, amount, note, ${dateCol}, created_at, category:categories(name, emoji, color)`);
+    q = f.recent
+      ? q.order("created_at", { ascending: false })
+      : q.order(dateCol, { ascending: false }).order("created_at", { ascending: false });
+    q = q.limit(limit);
     if (f.from) q = q.gte(dateCol, f.from);
     if (f.to) q = q.lte(dateCol, f.to);
     const { data } = await q;
@@ -74,8 +81,8 @@ export async function getEntries(supabase: SupabaseClient, f: EntryFilter = {}):
     kind === "expense" ? [] : fetch("income", "received_on", "income"),
   ]);
 
-  let entries = [...expenses, ...income].sort(
-    (a, b) => b.date.localeCompare(a.date) || b.created_at.localeCompare(a.created_at),
+  let entries = [...expenses, ...income].sort((a, b) =>
+    f.recent ? b.created_at.localeCompare(a.created_at) : b.date.localeCompare(a.date) || b.created_at.localeCompare(a.created_at),
   );
 
   if (f.search) {

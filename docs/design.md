@@ -36,7 +36,7 @@ Layout “Home · 4” on the design canvas:
   Expenses / Bills / Installments with an amount under each.
 - **Quick add**: the 6 most recent categories as a two-column list (full names).
 - **Coming up**: bills due in the next 14 days.
-- **Today**: today’s expenses and income.
+- **Recent**: the 5 most recently added expenses and income (any date), each with its day; tap to edit.
 
 ### Add ✅
 Layout A (see `docs/mockups/add-layouts.html`), full screen, no scrolling:

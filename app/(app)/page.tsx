@@ -6,7 +6,7 @@ import { EntryRow } from "@/components/EntryRow";
 import { PageHeader } from "@/components/PageHeader";
 import { Toast } from "@/components/Toast";
 import { getCategories, getEntries, getPlanPayments, getProfile, getUpcomingBills, sortByRecent, totals } from "@/lib/data";
-import { dueLabel, formatMoney, monthBounds, toISODate } from "@/lib/format";
+import { dayLabel, dueLabel, formatMoney, monthBounds, toISODate } from "@/lib/format";
 import { requireUser } from "@/lib/supabase/server";
 import { getNow } from "@/lib/today";
 
@@ -20,17 +20,17 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
   const { added, reset } = await searchParams;
   const { supabase, user } = await requireUser();
   const now = await getNow();
-  const today = toISODate(now);
   const month = monthBounds(now);
   const in14 = new Date(now);
   in14.setDate(in14.getDate() + 14);
 
-  const [profile, categories, monthEntries, bills, paid] = await Promise.all([
+  const [profile, categories, monthEntries, bills, paid, recentEntries] = await Promise.all([
     getProfile(supabase, user.id),
     getCategories(supabase, "expense"),
     getEntries(supabase, { from: month.start, to: month.end }),
     getUpcomingBills(supabase, toISODate(in14), 3),
     getPlanPayments(supabase, month.start, month.end),
+    getEntries(supabase, { recent: true, limit: 5 }),
   ]);
 
   const { currency } = profile;
@@ -47,7 +47,6 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
   const usedPct = budget ? (spent / budget) * 100 : 0; // the ring caps at 100%, the label doesn't
 
   const recent = sortByRecent(categories).slice(0, 6);
-  const todays = monthEntries.filter((e) => e.date === today);
   const firstName = profile.display_name?.split(" ")[0];
 
   return (
@@ -157,7 +156,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
         )}
       </Card>
 
-      {/* Today */}
+      {/* Recent: the 5 most recently added entries, any date */}
       <Card className="mt-4">
         <SectionTitle
           action={
@@ -166,16 +165,16 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
             </Link>
           }
         >
-          Today
+          Recent
         </SectionTitle>
-        {todays.length ? (
+        {recentEntries.length ? (
           <ul className="divide-y divide-line">
-            {todays.map((e) => (
-              <EntryRow key={`${e.kind}-${e.id}`} entry={e} currency={currency} editable />
+            {recentEntries.map((e) => (
+              <EntryRow key={`${e.kind}-${e.id}`} entry={e} currency={currency} editable dateLabel={dayLabel(e.date, now)} />
             ))}
           </ul>
         ) : (
-          <p className="py-2 text-sm text-muted">Nothing yet today. Tap + to add something.</p>
+          <p className="py-2 text-sm text-muted">Nothing yet. Tap + to add your first expense or income.</p>
         )}
       </Card>
 
